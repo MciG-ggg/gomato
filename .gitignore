@@ -1,0 +1,24 @@
+# 忽略所有 Markdown 文件，除了 README.md
+*.md
+!README.md
+
+# Go 构建输出
+/bin/
+/build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+gomato
+
+# 临时文件
+*.out
+*.log
+*.tmp
+
+# IDE/编辑器
+.vscode/
+.idea/
+.DS_Store 
