@@ -257,6 +257,35 @@ func (s *TimerTestSuite) TestWorkAndRestCycles() {
 	s.InDelta(4*testConfig.WorkDuration.Seconds(), stats.TotalWorkTime.Seconds(), 0.1, "总工作时间应该约等于配置的4倍工作时间")
 }
 
+func (s *TimerTestSuite) TestPauseResumeRealPause() {
+	// 使用较短的工作时间，便于测试
+	testConfig := config.Config{
+		WorkDuration:  2 * time.Second,
+		BreakDuration: 1 * time.Second,
+		SoundEnabled:  false,
+		TaskName:      "暂停恢复测试",
+	}
+	// 创建计时器
+	timer := NewTimer(testConfig, false)
+	go timer.Start()
+	// 启动计时器
+	time.Sleep(100 * time.Millisecond)
+	timer.TriggerStart()
+	// 运行0.5秒后暂停
+	time.Sleep(500 * time.Millisecond)
+	timer.Pause()
+	// 暂停期间等待1.5秒（大于剩余时间）
+	time.Sleep(1500 * time.Millisecond)
+	// 恢复
+	timer.Resume()
+	// 恢复后再等1.7秒（应能完成）
+	time.Sleep(1700 * time.Millisecond)
+	// 检查工作会话数，应该为1，说明没有因为暂停期间时间流逝而提前结束
+	stats := timer.GetStats()
+	assert.Equal(s.T(), 1, stats.WorkSessions, "暂停和恢复后，计时器应能正确完成一个工作会话")
+	timer.Stop()
+}
+
 func TestTimerSuite(t *testing.T) {
 	suite.Run(t, new(TimerTestSuite))
 }

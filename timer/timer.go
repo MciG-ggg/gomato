@@ -134,18 +134,23 @@ func (t *Timer) timer(duration time.Duration, phase string) bool {
 		phaseColor = common.Green
 	}
 
+	var remaining time.Duration // 新增变量用于记录剩余时间
+
 	for {
 		select {
 		case <-t.done:
 			return false
 		case <-t.pause:
+			// 暂停时记录剩余时间
+			remaining = time.Until(endTime)
 			common.ClearLine() // 暂停时清除当前行
 			fmt.Printf("%s已暂停，输入 'resume' 继续%s\n", common.Yellow, common.Reset)
-			<-t.pause                                     // 等待恢复信号
-			common.ClearLine()                            // 恢复时清除暂停提示行
-			endTime = time.Now().Add(time.Until(endTime)) // 更新结束时间
+			<-t.pause          // 等待恢复信号
+			common.ClearLine() // 恢复时清除暂停提示行
+			// 恢复时用剩余时间重新设置 endTime
+			endTime = time.Now().Add(remaining)
 		case <-ticker.C:
-			remaining := time.Until(endTime)
+			remaining = time.Until(endTime)
 			if remaining <= 0 {
 				common.ClearLine() // 结束时清除倒计时行
 				if t.config.SoundEnabled {
