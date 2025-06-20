@@ -9,6 +9,31 @@ import (
 	"gomato/config"
 )
 
+// TimerDisplay 定义了计时器时间显示的接口
+// 你可以实现不同的显示方式（如控制台、GUI等）
+type TimerDisplay interface {
+	ShowTime(phase string, minutes, seconds int)
+	Clear()
+}
+
+// ConsoleTimerDisplay 是当前的控制台显示实现
+// 默认实现与现有逻辑一致
+type ConsoleTimerDisplay struct{}
+
+func (c *ConsoleTimerDisplay) ShowTime(phase string, minutes, seconds int) {
+	phaseColor := common.Blue
+	if phase == "休息时间" {
+		phaseColor = common.Green
+	}
+	common.ClearLine()
+	fmt.Printf("\r%s%s剩余时间: %s%02d:%02d%s",
+		phaseColor, phase, common.White, minutes, seconds, common.Reset)
+}
+
+func (c *ConsoleTimerDisplay) Clear() {
+	common.ClearLine()
+}
+
 type Timer struct {
 	config    config.Config
 	stats     *Stats
@@ -18,8 +43,9 @@ type Timer struct {
 	AutoStart bool
 	isPaused  bool
 	task      *Task
-	isStopped bool // 添加标志来跟踪计时器是否已停止
-	isRest    bool // 添加标志来跟踪是否在休息模式
+	isStopped bool         // 添加标志来跟踪计时器是否已停止
+	isRest    bool         // 添加标志来跟踪是否在休息模式
+	display   TimerDisplay // 新增：用于显示时间的接口
 }
 
 type Stats struct {
@@ -50,6 +76,7 @@ func NewTimer(cfg config.Config, autoStart bool) *Timer {
 		task:      task,
 		isStopped: false,
 		isRest:    false,
+		display:   &ConsoleTimerDisplay{}, // 默认使用控制台显示
 	}
 
 	return timer
@@ -129,9 +156,7 @@ func (t *Timer) timer(duration time.Duration, phase string) bool {
 	defer ticker.Stop()
 
 	endTime := time.Now().Add(duration)
-	phaseColor := common.Blue
 	if phase == "休息时间" {
-		phaseColor = common.Green
 	}
 
 	var remaining time.Duration // 新增变量用于记录剩余时间
@@ -143,16 +168,16 @@ func (t *Timer) timer(duration time.Duration, phase string) bool {
 		case <-t.pause:
 			// 暂停时记录剩余时间
 			remaining = time.Until(endTime)
-			common.ClearLine() // 暂停时清除当前行
+			t.display.Clear() // 用接口清除当前行
 			fmt.Printf("%s已暂停，输入 'resume' 继续%s\n", common.Yellow, common.Reset)
-			<-t.pause          // 等待恢复信号
-			common.ClearLine() // 恢复时清除暂停提示行
+			<-t.pause         // 等待恢复信号
+			t.display.Clear() // 恢复时清除暂停提示行
 			// 恢复时用剩余时间重新设置 endTime
 			endTime = time.Now().Add(remaining)
 		case <-ticker.C:
 			remaining = time.Until(endTime)
 			if remaining <= 0 {
-				common.ClearLine() // 结束时清除倒计时行
+				t.display.Clear() // 结束时清除倒计时行
 				if t.config.SoundEnabled {
 					playSound()
 				}
@@ -160,9 +185,7 @@ func (t *Timer) timer(duration time.Duration, phase string) bool {
 			}
 			minutes := int(remaining.Minutes())
 			seconds := int(remaining.Seconds()) % 60
-			common.ClearLine()
-			fmt.Printf("\r%s%s剩余时间: %s%02d:%02d%s",
-				phaseColor, phase, common.White, minutes, seconds, common.Reset)
+			t.display.ShowTime(phase, minutes, seconds)
 		}
 	}
 }
