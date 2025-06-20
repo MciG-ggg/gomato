@@ -3,19 +3,34 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"gomato/task"
 	"gomato/util"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
-// clearConsole 清除终端屏幕
+// clearConsole 根据系统不同,清除终端屏幕
 func clearConsole() {
-	cmd := exec.Command("clear") // For Linux/macOS
-	// cmd := exec.Command("cmd", "/c", "cls") // For Windows
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "cls")
+	case "linux", "darwin":
+		cmd = exec.Command("clear")
+	default:
+		fmt.Println("不支持的操作系统:", runtime.GOOS)
+		return
+	}
+
 	cmd.Stdout = os.Stdout
-	cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("清屏失败:", err)
+	}
 }
 
 func main() {
