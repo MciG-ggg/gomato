@@ -182,10 +182,9 @@ func (m *Menu) handleStartTask() {
 	if m.app.GetTask() == nil {
 		// 如果没有加载的任务，则创建一个新的任务
 		newTask := &timer.Task{
-			Name:         selectedTask.Description,
-			WorkTime:     m.app.GetConfig().WorkDuration,
-			BreakTime:    m.app.GetConfig().BreakDuration,
-			SoundEnabled: m.app.GetConfig().SoundEnabled,
+			Name:      selectedTask.Description,
+			WorkTime:  m.app.GetConfig().WorkDuration,
+			BreakTime: m.app.GetConfig().BreakDuration,
 		}
 		if err := timer.SaveTask(newTask); err != nil {
 			fmt.Printf("%s保存任务失败：%v%s\n", common.Red, err, common.Reset)
@@ -194,7 +193,7 @@ func (m *Menu) handleStartTask() {
 		m.app.SetTask(newTask) // 更新 app 中的任务实例
 	} else {
 		// 如果有已加载的任务，则更新它
-		if err := m.app.UpdateTask(selectedTask.Description, m.app.GetConfig().WorkDuration, m.app.GetConfig().BreakDuration, m.app.GetConfig().SoundEnabled); err != nil {
+		if err := m.app.UpdateTask(selectedTask.Description, m.app.GetConfig().WorkDuration, m.app.GetConfig().BreakDuration); err != nil {
 			fmt.Printf("%s更新任务配置失败：%v%s\n", common.Red, err, common.Reset)
 			return
 		}

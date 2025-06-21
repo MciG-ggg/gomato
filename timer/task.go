@@ -9,10 +9,9 @@ import (
 )
 
 type Task struct {
-	Name         string        `json:"name"`
-	WorkTime     time.Duration `json:"work_time"`
-	BreakTime    time.Duration `json:"break_time"`
-	SoundEnabled bool          `json:"sound_enabled"`
+	Name      string        `json:"name"`
+	WorkTime  time.Duration `json:"work_time"`
+	BreakTime time.Duration `json:"break_time"`
 }
 
 func SaveTask(task *Task) error {

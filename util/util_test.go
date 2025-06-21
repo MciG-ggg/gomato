@@ -67,16 +67,6 @@ func (s *AppTestSuite) TestSetBreakDuration() {
 	assert.Equal(s.T(), expected, s.app.cfg.BreakDuration, "休息时间应该匹配")
 }
 
-func (s *AppTestSuite) TestToggleSound() {
-	initial := s.app.cfg.SoundEnabled
-
-	s.app.cfg.ToggleSound()
-	assert.NotEqual(s.T(), initial, s.app.cfg.SoundEnabled, "声音状态应该改变")
-
-	s.app.cfg.ToggleSound()
-	assert.Equal(s.T(), initial, s.app.cfg.SoundEnabled, "声音状态应该恢复到初始状态")
-}
-
 func (s *AppTestSuite) TestPrintStats() {
 	// 添加一些任务
 	s.app.addTask("任务1")
@@ -132,7 +122,6 @@ func (s *AppTestSuite) TestProcessCommand() {
 		{"完成任务命令", "complete 1"},
 		{"设置工作时间命令", "work 30m"},
 		{"设置休息时间命令", "break 10m"},
-		{"切换声音命令", "sound"},
 	}
 
 	for _, tc := range testCases {

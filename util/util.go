@@ -18,19 +18,21 @@ import (
 type App struct {
 	timer *timer.Timer
 	tasks *task.TaskManager
-	cfg   *config.Config
+	cfg   *config.TaskConfig
 	task  *timer.Task
 }
 
 func NewApp() *App {
-	cfg := config.DefaultConfig
+	// read config from task.json
+	// 如果没有任务，则使用默认配置
+	// 如果有任务，则使用任务中的配置
+	cfg := config.DefaultTaskConfig
 	loadedTask, _ := timer.LoadTask()
 
 	if loadedTask != nil {
 		cfg.TaskName = loadedTask.Name
 		cfg.WorkDuration = loadedTask.WorkTime
 		cfg.BreakDuration = loadedTask.BreakTime
-		cfg.SoundEnabled = loadedTask.SoundEnabled
 	}
 
 	app := &App{
@@ -41,50 +43,46 @@ func NewApp() *App {
 	}
 
 	if loadedTask != nil {
-		app.timer.UpdateTask(loadedTask.Name, loadedTask.WorkTime, loadedTask.BreakTime, loadedTask.SoundEnabled)
+		app.timer.UpdateTask(loadedTask.Name, loadedTask.WorkTime, loadedTask.BreakTime)
 	}
 
 	return app
 }
 
-func (a *App) GetConfig() *config.Config {
+func (a *App) GetConfig() *config.TaskConfig {
 	return a.cfg
 }
 
 func (a *App) SetTask(task *timer.Task) {
 	a.task = task
-	a.timer.UpdateTask(task.Name, task.WorkTime, task.BreakTime, task.SoundEnabled)
+	a.timer.UpdateTask(task.Name, task.WorkTime, task.BreakTime)
 	a.cfg.TaskName = task.Name
 	a.cfg.WorkDuration = task.WorkTime
 	a.cfg.BreakDuration = task.BreakTime
-	a.cfg.SoundEnabled = task.SoundEnabled
 }
 
 func (a *App) GetTask() *timer.Task {
 	return a.task
 }
 
-func (a *App) UpdateTask(name string, workTime, breakTime time.Duration, soundEnabled bool) error {
+func (a *App) UpdateTask(name string, workTime, breakTime time.Duration) error {
 	if a.task == nil {
 		a.task = &timer.Task{
-			Name:         name,
-			WorkTime:     workTime,
-			BreakTime:    breakTime,
-			SoundEnabled: soundEnabled,
+			Name:      name,
+			WorkTime:  workTime,
+			BreakTime: breakTime,
 		}
 	} else {
 		a.task.Name = name
 		a.task.WorkTime = workTime
 		a.task.BreakTime = breakTime
-		a.task.SoundEnabled = soundEnabled
 	}
 
 	a.cfg.TaskName = name
 	a.cfg.WorkDuration = workTime
 	a.cfg.BreakDuration = breakTime
-	a.cfg.SoundEnabled = soundEnabled
 
-	if err := a.timer.UpdateTask(name, workTime, breakTime, soundEnabled); err != nil {
+	if err := a.timer.UpdateTask(name, workTime, breakTime); err != nil {
 		return fmt.Errorf("更新计时器任务失败：%v", err)
 	}
 
@@ -170,9 +168,6 @@ func (a *App) processCommand(cmd string) {
 		a.setWorkDuration(strings.TrimPrefix(cmd, "work "))
 	case strings.HasPrefix(cmd, "break "):
 		a.setBreakDuration(strings.TrimPrefix(cmd, "break "))
-	case cmd == "sound":
-		a.cfg.ToggleSound()
-		fmt.Printf("%s声音提醒已%s%s\n", common.Blue, map[bool]string{true: "开启", false: "关闭"}[a.cfg.SoundEnabled], common.Reset)
 	case strings.HasPrefix(cmd, "name "):
 		name := strings.TrimPrefix(cmd, "name ")
 		a.SetTaskName(name)
@@ -205,9 +200,9 @@ func (a *App) setWorkDuration(duration string) {
 		a.cfg.SetWork(d)
 		if a.task != nil {
 			a.task.WorkTime = d
-			a.timer.UpdateTask(a.task.Name, a.task.WorkTime, a.task.BreakTime, a.task.SoundEnabled)
+			a.timer.UpdateTask(a.task.Name, a.task.WorkTime, a.task.BreakTime)
 		} else {
-			a.timer.UpdateTask(a.cfg.TaskName, a.cfg.WorkDuration, a.cfg.BreakDuration, a.cfg.SoundEnabled)
+			a.timer.UpdateTask(a.cfg.TaskName, a.cfg.WorkDuration, a.cfg.BreakDuration)
 		}
 
 		fmt.Printf("%s工作时间已设置为 %v%s\n", common.Blue, d, common.Reset)
@@ -221,9 +216,9 @@ func (a *App) setBreakDuration(duration string) {
 		a.cfg.SetBreak(d)
 		if a.task != nil {
 			a.task.BreakTime = d
-			a.timer.UpdateTask(a.task.Name, a.task.WorkTime, a.task.BreakTime, a.task.SoundEnabled)
+			a.timer.UpdateTask(a.task.Name, a.task.WorkTime, a.task.BreakTime)
 		} else {
-			a.timer.UpdateTask(a.cfg.TaskName, a.cfg.WorkDuration, a.cfg.BreakDuration, a.cfg.SoundEnabled)
+			a.timer.UpdateTask(a.cfg.TaskName, a.cfg.WorkDuration, a.cfg.BreakDuration)
 		}
 
 		fmt.Printf("%s休息时间已设置为 %v%s\n", common.Blue, d, common.Reset)
@@ -277,16 +272,14 @@ func (a *App) SetTaskName(name string) {
 	a.cfg.TaskName = name
 	currentWorkTime := a.cfg.WorkDuration
 	currentBreakTime := a.cfg.BreakDuration
-	currentSoundEnabled := a.cfg.SoundEnabled
 
 	if a.task != nil {
 		a.task.Name = name
 		currentWorkTime = a.task.WorkTime
 		currentBreakTime = a.task.BreakTime
-		currentSoundEnabled = a.task.SoundEnabled
 	}
 
-	a.timer.UpdateTask(name, currentWorkTime, currentBreakTime, currentSoundEnabled)
+	a.timer.UpdateTask(name, currentWorkTime, currentBreakTime)
 }
 
 func (a *App) saveTasks() {
@@ -319,7 +312,6 @@ func printHelp() {
 	fmt.Printf("%s  complete <ID>     - %s完成任务%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  work <时间>       - %s设置工作时间（例如：25m）%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  break <时间>      - %s设置休息时间（例如：5m）%s\n", common.Blue, common.White, common.Reset)
-	fmt.Printf("%s  sound             - %s切换声音提醒%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  name <名称>       - %s设置当前任务名称%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  pause             - %s暂停当前计时%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  resume            - %s恢复计时%s\n", common.Blue, common.White, common.Reset)

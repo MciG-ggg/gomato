@@ -35,7 +35,7 @@ func (c *ConsoleTimerDisplay) Clear() {
 }
 
 type Timer struct {
-	config    config.Config
+	config    config.TaskConfig
 	stats     *Stats
 	done      chan struct{}
 	pause     chan struct{}
@@ -54,7 +54,7 @@ type Stats struct {
 	TotalWorkTime time.Duration
 }
 
-func NewTimer(cfg config.Config, autoStart bool) *Timer {
+func NewTimer(cfg config.TaskConfig, autoStart bool) *Timer {
 	// 尝试加载已保存的任务
 	task, _ := LoadTask()
 	if task != nil {
@@ -62,7 +62,6 @@ func NewTimer(cfg config.Config, autoStart bool) *Timer {
 		cfg.TaskName = task.Name
 		cfg.WorkDuration = task.WorkTime
 		cfg.BreakDuration = task.BreakTime
-		cfg.SoundEnabled = task.SoundEnabled
 	}
 
 	timer := &Timer{
@@ -178,9 +177,7 @@ func (t *Timer) timer(duration time.Duration, phase string) bool {
 			remaining = time.Until(endTime)
 			if remaining <= 0 {
 				t.display.Clear() // 结束时清除倒计时行
-				if t.config.SoundEnabled {
-					playSound()
-				}
+				playSound()
 				return true
 			}
 			minutes := int(remaining.Minutes())
@@ -198,28 +195,25 @@ func playSound() {
 	// TODO: 实现声音提醒功能
 }
 
-func (t *Timer) UpdateTask(name string, workTime, breakTime time.Duration, soundEnabled bool) error {
+func (t *Timer) UpdateTask(name string, workTime, breakTime time.Duration) error {
 	// 如果 task 为 nil，创建一个新的 Task 实例
 	if t.task == nil {
 		t.task = &Task{
-			Name:         name,
-			WorkTime:     workTime,
-			BreakTime:    breakTime,
-			SoundEnabled: soundEnabled,
+			Name:      name,
+			WorkTime:  workTime,
+			BreakTime: breakTime,
 		}
 	} else {
 		// 更新任务数据
 		t.task.Name = name
 		t.task.WorkTime = workTime
 		t.task.BreakTime = breakTime
-		t.task.SoundEnabled = soundEnabled
 	}
 
 	// 更新配置
 	t.config.TaskName = name
 	t.config.WorkDuration = workTime
 	t.config.BreakDuration = breakTime
-	t.config.SoundEnabled = soundEnabled
 
 	// 保存到JSON文件
 	if err := SaveTask(t.task); err != nil {

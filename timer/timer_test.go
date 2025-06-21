@@ -17,7 +17,7 @@ type TimerTestSuite struct {
 }
 
 func (s *TimerTestSuite) SetupTest() {
-	cfg := config.DefaultConfig
+	cfg := config.DefaultTaskConfig
 	s.timer = NewTimer(cfg, false)
 }
 
@@ -29,19 +29,19 @@ func (s *TimerTestSuite) TearDownTest() {
 
 func (s *TimerTestSuite) TestNewTimer() {
 	// 测试手动开始模式
-	timer := NewTimer(config.DefaultConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig, false)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
 	assert.False(s.T(), timer.AutoStart, "手动开始模式下 AutoStart 应为 false")
 
 	// 测试自动开始模式
-	timer = NewTimer(config.DefaultConfig, true)
+	timer = NewTimer(config.DefaultTaskConfig, true)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
 	assert.True(s.T(), timer.AutoStart, "自动开始模式下 AutoStart 应为 true")
 }
 
 func (s *TimerTestSuite) TestWorkSessionCounting() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig, false)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -65,7 +65,7 @@ func (s *TimerTestSuite) TestWorkSessionCounting() {
 
 func (s *TimerTestSuite) TestBreakSessionCounting() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig, false)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -77,7 +77,7 @@ func (s *TimerTestSuite) TestBreakSessionCounting() {
 	timer.TriggerStart()
 
 	// 等待工作时间结束
-	time.Sleep(config.DefaultConfig.WorkDuration + 100*time.Millisecond)
+	time.Sleep(config.DefaultTaskConfig.WorkDuration + 100*time.Millisecond)
 
 	// 检查休息会话数
 	stats := timer.GetStats()
@@ -89,7 +89,7 @@ func (s *TimerTestSuite) TestBreakSessionCounting() {
 
 func (s *TimerTestSuite) TestTotalWorkTime() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig, false)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -101,11 +101,11 @@ func (s *TimerTestSuite) TestTotalWorkTime() {
 	timer.TriggerStart()
 
 	// 等待工作时间结束
-	time.Sleep(config.DefaultConfig.WorkDuration + 100*time.Millisecond)
+	time.Sleep(config.DefaultTaskConfig.WorkDuration + 100*time.Millisecond)
 
 	// 检查总工作时间
 	stats := timer.GetStats()
-	assert.Equal(s.T(), config.DefaultConfig.WorkDuration, stats.TotalWorkTime, "总工作时间应该等于配置的工作时间")
+	assert.Equal(s.T(), config.DefaultTaskConfig.WorkDuration, stats.TotalWorkTime, "总工作时间应该等于配置的工作时间")
 
 	// 停止计时器
 	timer.Stop()
@@ -113,7 +113,7 @@ func (s *TimerTestSuite) TestTotalWorkTime() {
 
 func (s *TimerTestSuite) TestPauseAndResume() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig, false)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -141,10 +141,9 @@ func (s *TimerTestSuite) TestPauseAndResume() {
 
 func (s *TimerTestSuite) TestBreakChoice() {
 	// 创建一个自定义配置，使用更短的测试时间
-	testConfig := config.Config{
+	testConfig := config.TaskConfig{
 		WorkDuration:  2 * time.Second,
 		BreakDuration: 1 * time.Second,
-		SoundEnabled:  false,
 		TaskName:      "测试任务",
 	}
 
@@ -181,10 +180,9 @@ func (s *TimerTestSuite) TestBreakChoice() {
 
 func (s *TimerTestSuite) TestWorkAndRestCycles() {
 	// 为测试配置短时长，确保至少触发一次秒级计时器
-	testConfig := config.Config{
+	testConfig := config.TaskConfig{
 		WorkDuration:  2 * time.Second, // 改为2秒，确保至少有一个完整的tick
 		BreakDuration: 2 * time.Second, // 改为2秒，确保至少有一个完整的tick
-		SoundEnabled:  false,
 		TaskName:      "循环测试任务",
 	}
 	timer := NewTimer(testConfig, false)
@@ -192,7 +190,6 @@ func (s *TimerTestSuite) TestWorkAndRestCycles() {
 	// 显式设置计时器的配置，以确保使用测试值，覆盖任何加载的任务配置。
 	timer.config.WorkDuration = testConfig.WorkDuration
 	timer.config.BreakDuration = testConfig.BreakDuration
-	timer.config.SoundEnabled = testConfig.SoundEnabled
 	timer.config.TaskName = testConfig.TaskName
 
 	// 模拟 os.Stdin 以控制用户输入
@@ -259,13 +256,11 @@ func (s *TimerTestSuite) TestWorkAndRestCycles() {
 
 func (s *TimerTestSuite) TestPauseResumeRealPause() {
 	// 使用较短的工作时间，便于测试
-	testConfig := config.Config{
+	testConfig := config.TaskConfig{
 		WorkDuration:  2 * time.Second,
 		BreakDuration: 1 * time.Second,
-		SoundEnabled:  false,
 		TaskName:      "暂停恢复测试",
 	}
-	// 创建计时器
 	timer := NewTimer(testConfig, false)
 	go timer.Start()
 	// 启动计时器
