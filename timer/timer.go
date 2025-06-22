@@ -7,6 +7,7 @@ import (
 
 	"gomato/common"
 	"gomato/config"
+	"gomato/setting"
 )
 
 // TimerDisplay 定义了计时器时间显示的接口
@@ -16,11 +17,11 @@ type TimerDisplay interface {
 	Clear()
 }
 
-// ConsoleTimerDisplay 是当前的控制台显示实现
+// NormalTimerDisplay 是当前的控制台显示实现
 // 默认实现与现有逻辑一致
-type ConsoleTimerDisplay struct{}
+type NormalTimerDisplay struct{}
 
-func (c *ConsoleTimerDisplay) ShowTime(phase string, minutes, seconds int) {
+func (c *NormalTimerDisplay) ShowTime(phase string, minutes, seconds int) {
 	phaseColor := common.Blue
 	if phase == "休息时间" {
 		phaseColor = common.Green
@@ -30,8 +31,77 @@ func (c *ConsoleTimerDisplay) ShowTime(phase string, minutes, seconds int) {
 		phaseColor, phase, common.White, minutes, seconds, common.Reset)
 }
 
-func (c *ConsoleTimerDisplay) Clear() {
+func (c *NormalTimerDisplay) Clear() {
 	common.ClearLine()
+}
+
+// AnsiTimerDisplay 是一个使用 ANSI 字符艺术来显示时间的实现
+type AnsiTimerDisplay struct{}
+
+// ASCIINumbers 是一个将数字映射到其 ASCII 艺术表示的映射
+var ASCIINumbers = map[int][]string{
+	0: {"█████", "█   █", "█   █", "█   █", "█████"},
+	1: {"  █  ", " ██  ", "  █  ", "  █  ", " ███ "},
+	2: {"█████", "    █", "█████", "█    ", "█████"},
+	3: {"█████", "    █", "█████", "    █", "█████"},
+	4: {"█   █", "█   █", "█████", "    █", "    █"},
+	5: {"█████", "█    ", "█████", "    █", "█████"},
+	6: {"█████", "█    ", "█████", "█   █", "█████"},
+	7: {"█████", "    █", "   █ ", "  █  ", " █   "},
+	8: {"█████", "█   █", "█████", "█   █", "█████"},
+	9: {"█████", "█   █", "█████", "    █", "█████"},
+}
+
+// ASCIISeparator 是用于分隔分钟和秒的ASCII艺术
+var ASCIISeparator = []string{"     ", "  █  ", "     ", "  █  ", "     "}
+
+func (a *AnsiTimerDisplay) ShowTime(phase string, minutes, seconds int) {
+	// 清除屏幕并将光标移动到左上角
+	fmt.Print("\033[H\033[2J")
+
+	phaseColor := common.Blue
+	if phase == "休息时间" {
+		phaseColor = common.Green
+	}
+	// 在顶部打印阶段标题
+	fmt.Printf("%s%s%s\n\n", phaseColor, phase, common.Reset)
+
+	m1 := minutes / 10
+	m2 := minutes % 10
+	s1 := seconds / 10
+	s2 := seconds % 10
+
+	// 从 ASCII 艺术映射中获取每个数字的表示
+	asciiM1 := ASCIINumbers[m1]
+	asciiM2 := ASCIINumbers[m2]
+	asciiS1 := ASCIINumbers[s1]
+	asciiS2 := ASCIINumbers[s2]
+
+	// 逐行打印组合的 ASCII 艺术
+	for i := 0; i < 5; i++ { // 数字有5行高
+		fmt.Printf("%s %s  %s  %s%s %s  %s %s%s\n",
+			common.White, asciiM1[i], asciiM2[i],
+			phaseColor, ASCIISeparator[i],
+			common.White, asciiS1[i], asciiS2[i],
+			common.Reset)
+	}
+}
+
+func (a *AnsiTimerDisplay) Clear() {
+	// 清除屏幕
+	fmt.Print("\033[H\033[2J")
+}
+
+func GetTimerDisplay() TimerDisplay {
+	TimerDisplayFormat := setting.GetAppSetting().TimeDisplayFormat
+	switch TimerDisplayFormat {
+	case "normal":
+		return &NormalTimerDisplay{} // 返回控制台显示实现
+	case "ansi":
+		return &AnsiTimerDisplay{} // 返回 ANSI 字符艺术显示实现
+	default:
+		return nil
+	}
 }
 
 type Timer struct {
@@ -40,7 +110,6 @@ type Timer struct {
 	done      chan struct{}
 	pause     chan struct{}
 	start     chan struct{}
-	AutoStart bool
 	isPaused  bool
 	task      *Task
 	isStopped bool         // 添加标志来跟踪计时器是否已停止
@@ -64,18 +133,18 @@ func NewTimer(cfg config.TaskConfig, autoStart bool) *Timer {
 		cfg.BreakDuration = task.BreakTime
 	}
 
+	timerDisplay := GetTimerDisplay()
 	timer := &Timer{
 		config:    cfg,
 		stats:     &Stats{},
 		done:      make(chan struct{}),
 		pause:     make(chan struct{}),
 		start:     make(chan struct{}),
-		AutoStart: autoStart,
 		isPaused:  false,
 		task:      task,
 		isStopped: false,
 		isRest:    false,
-		display:   &ConsoleTimerDisplay{}, // 默认使用控制台显示
+		display:   timerDisplay, // 默认使用控制台显示
 	}
 
 	return timer
@@ -83,13 +152,11 @@ func NewTimer(cfg config.TaskConfig, autoStart bool) *Timer {
 
 func (t *Timer) Start() {
 	for {
-		if !t.AutoStart {
-			select {
-			case <-t.done:
-				return
-			case <-t.start:
-				// 收到开始信号，继续执行
-			}
+		select {
+		case <-t.done:
+			return
+		case <-t.start:
+			// 收到开始信号，继续执行
 		}
 
 		select {

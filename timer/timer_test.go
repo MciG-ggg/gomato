@@ -31,12 +31,10 @@ func (s *TimerTestSuite) TestNewTimer() {
 	// 测试手动开始模式
 	timer := NewTimer(config.DefaultTaskConfig, false)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
-	assert.False(s.T(), timer.AutoStart, "手动开始模式下 AutoStart 应为 false")
 
 	// 测试自动开始模式
 	timer = NewTimer(config.DefaultTaskConfig, true)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
-	assert.True(s.T(), timer.AutoStart, "自动开始模式下 AutoStart 应为 true")
 }
 
 func (s *TimerTestSuite) TestWorkSessionCounting() {
