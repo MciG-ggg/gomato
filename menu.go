@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"gomato/common"
+	"gomato/setting"
 	"gomato/task"
 	"gomato/timer"
 	"gomato/util"
@@ -40,9 +41,10 @@ func (m *Menu) Display() {
 	fmt.Println("5. 标记任务完成")
 	fmt.Println("6. 删除任务")
 	fmt.Println("7. 清空所有任务")
-	fmt.Println("8. 退出")
+	fmt.Println("8. setting 设置")
+	fmt.Println("9. 退出")
 	fmt.Println("==========================")
-	fmt.Print("请选择操作 (1-8): ")
+	fmt.Print("请选择操作 (1-9): ")
 }
 
 func (m *Menu) HandleChoice(choice string) bool {
@@ -62,6 +64,9 @@ func (m *Menu) HandleChoice(choice string) bool {
 	case "7":
 		m.handleClearAllTasks()
 	case "8":
+		fmt.Println("\n进入设置菜单...")
+		m.modifySettings()
+	case "9":
 		fmt.Println("\n感谢使用！再见！")
 		return false
 	default:
@@ -119,7 +124,7 @@ func (m *Menu) handleRecentTasks() {
 		fmt.Println("====================================")
 	}
 	fmt.Print("按 Enter 键继续...")
-	m.reader.ReadString('\n')
+	m.reader.ReadString('\n') // 等待用户输入, 读取并丢弃用户的一次输入（直到按下回车)
 }
 
 func (m *Menu) handleStartTask() {
@@ -209,6 +214,8 @@ func (m *Menu) handleCompleteTask() {
 	incompleteTasks := m.taskManager.GetIncompleteTasks()
 	if len(incompleteTasks) == 0 {
 		fmt.Println("\n没有未完成的任务可标记完成。")
+		fmt.Print("按 Enter 键继续...")
+		m.reader.ReadString('\n') // 等待用户输入, 读取并丢弃用户的一次输入（直到按下回车)
 		return
 	}
 
@@ -238,6 +245,8 @@ func (m *Menu) handleDeleteTask() {
 	incompleteTasks := m.taskManager.GetIncompleteTasks()
 	if len(incompleteTasks) == 0 {
 		fmt.Println("\n没有可删除的任务。")
+		fmt.Print("按 Enter 键继续...")
+		m.reader.ReadString('\n') // 等待用户输入, 读取并丢弃用户的一次输入（直到按下回车)
 		return
 	}
 
@@ -274,4 +283,94 @@ func (m *Menu) handleClearAllTasks() {
 	} else {
 		fmt.Println("\n已取消清空操作。")
 	}
+	fmt.Print("按 Enter 键继续...")
+	m.reader.ReadString('\n') // 等待用户输入, 读取并丢弃用户的一次输入（直到按下回车)
+}
+
+func (m *Menu) modifySettings() {
+	for {
+		fmt.Println("\n==========================")
+		fmt.Println("=== 设置菜单 ===")
+		fmt.Println("==========================")
+		fmt.Println("1. 修改时间显示格式")
+		fmt.Println("2. 查看当前设置")
+		fmt.Println("3. 重置为默认设置")
+		fmt.Println("4. 返回主菜单")
+		fmt.Println("==========================")
+		fmt.Print("请选择操作 (1-6): ")
+
+		choice, _ := m.reader.ReadString('\n')
+		choice = strings.TrimSpace(choice)
+
+		switch choice {
+		case "1":
+			m.modifyTimeDisplayFormat()
+		case "2":
+			m.showCurrentSettings()
+		case "3":
+			m.resetToDefaultSettings()
+		case "4":
+			return
+		default:
+			fmt.Println("\n无效的选择，请重试。")
+		}
+	}
+}
+
+func (m *Menu) modifyTimeDisplayFormat() {
+	fmt.Println("\n时间显示格式选项：")
+	fmt.Println("1. normal")
+	fmt.Println("2. ansi")
+
+	fmt.Print("请选择时间显示格式 (1-2): ")
+	choice, _ := m.reader.ReadString('\n')
+	choice = strings.TrimSpace(choice)
+
+	newSetting := setting.GetAppSetting() // 获取当前设置
+	switch choice {
+	case "1":
+		fmt.Printf("%s时间显示格式已设置为：normal%s\n", common.Green, common.Reset)
+		newSetting.TimeDisplayFormat = "normal"
+	case "2":
+		fmt.Printf("%s时间显示格式已设置为：ansi%s\n", common.Green, common.Reset)
+		newSetting.TimeDisplayFormat = "ansi"
+	default:
+		fmt.Printf("%s无效的选择，保持当前格式。%s\n", common.Yellow, common.Reset)
+		return
+
+	}
+	// 更新全局设置
+	setting.SetAppSetting(newSetting)
+	fmt.Print("按 Enter 键继续...")
+	m.reader.ReadString('\n')
+}
+
+func (m *Menu) showCurrentSettings() {
+	fmt.Println("\n============= 当前设置 =============")
+	fmt.Printf("时间显示格式：%s\n", setting.GetAppSetting().TimeDisplayFormat)
+	fmt.Println("====================================")
+
+	fmt.Print("按 Enter 键继续...")
+	m.reader.ReadString('\n')
+}
+
+func (m *Menu) resetToDefaultSettings() {
+	fmt.Print("确定要重置为默认设置吗？(y/n): ")
+	confirm, _ := m.reader.ReadString('\n')
+	confirm = strings.TrimSpace(strings.ToLower(confirm))
+
+	if confirm == "y" || confirm == "yes" {
+		// 重置为默认配置
+		if err := setting.ResetToDefaultSettings(); err != nil {
+			fmt.Printf("%s重置设置失败：%v%s\n", common.Red, err, common.Reset)
+		} else {
+			fmt.Printf("%s设置已重置为默认值！%s\n", common.Green, common.Reset)
+			fmt.Printf("时间显示格式：%s\n", setting.GetAppSetting().TimeDisplayFormat)
+		}
+	} else {
+		fmt.Printf("%s已取消重置操作。%s\n", common.Yellow, common.Reset)
+	}
+
+	fmt.Print("按 Enter 键继续...")
+	m.reader.ReadString('\n')
 }

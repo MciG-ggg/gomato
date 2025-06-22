@@ -26,6 +26,7 @@ func NewApp() *App {
 	// read config from task.json
 	// 如果没有任务，则使用默认配置
 	// 如果有任务，则使用任务中的配置
+	// TODO: load setting
 	cfg := config.DefaultTaskConfig
 	loadedTask, _ := timer.LoadTask()
 

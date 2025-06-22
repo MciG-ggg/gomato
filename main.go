@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
+	"gomato/setting"
 	"gomato/task"
 	"gomato/util"
 	"os"
@@ -34,19 +34,18 @@ func clearConsole() {
 }
 
 func main() {
-	// 解析命令行参数
-	name := flag.String("name", "", "设置任务名称")
-	flag.Parse()
+	// Load settings
+	err := setting.Load()
+	if err != nil {
+		fmt.Println("加载设置失败:", err)
+		return
+	}
 
 	// 创建应用实例
+	// TODO: should load setting
 	app := util.NewApp()
 	taskManager := task.NewTaskManager()
 	menu := NewMenu(app, taskManager)
-
-	// 只有在提供了任务名称时才设置
-	if *name != "" {
-		app.SetTaskName(*name)
-	}
 
 	reader := bufio.NewReader(os.Stdin)
 
