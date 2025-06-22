@@ -1,0 +1,101 @@
+/* web/static/style.css */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: #fff;
+    padding: 2rem 3rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+}
+
+h1, h2 {
+    color: #1c1e21;
+}
+
+.timer {
+    margin: 2rem 0;
+}
+
+.time-display {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #1877f2;
+    margin-bottom: 1rem;
+}
+
+.controls button {
+    background-color: #1877f2;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 0 0.5rem;
+    transition: background-color 0.3s;
+}
+
+.controls button:hover {
+    background-color: #166fe5;
+}
+
+.tasks {
+    margin-top: 2rem;
+}
+
+#task-list {
+    list-style-type: none;
+    padding: 0;
+    text-align: left;
+}
+
+#task-list li {
+    background-color: #f0f2f5;
+    padding: 0.8rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-input {
+    display: flex;
+    margin-top: 1rem;
+}
+
+#task-input-field {
+    flex-grow: 1;
+    border: 1px solid #dddfe2;
+    padding: 0.8rem;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+#add-task-btn {
+    background-color: #42b72a;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    transition: background-color 0.3s;
+}
+
+#add-task-btn:hover {
+    background-color: #36a420;
+} 

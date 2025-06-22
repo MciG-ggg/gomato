@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>番茄钟</h1>
+
+        <div class="timer">
+            <div class="time-display">25:00</div>
+            <div class="controls">
+                <button id="start-btn">开始</button>
+                <button id="pause-btn">暂停</button>
+                <button id="reset-btn">重置</button>
+            </div>
+        </div>
+
+        <div class="tasks">
+            <h2>任务列表</h2>
+            <ul id="task-list">
+                <!-- 任务项将由JavaScript动态插入 -->
+            </ul>
+            <div class="task-input">
+                <input type="text" id="task-input-field" placeholder="输入新任务...">
+                <button id="add-task-btn">添加任务</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html> 
