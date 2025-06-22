@@ -151,6 +151,60 @@ go test ./...
 - 仅支持类Unix终端（如Linux/macOS）
 - 确保终端支持ANSI转义序列以获得最佳显示效果
 
+## Web应用（Gin + WebSocket）
+
+这个分支（`feat/web`）将原有的命令行番茄钟应用改造成了一个Web应用。
+
+### 技术栈
+
+- **后端**: Go, [Gin](https://github.com/gin-gonic/gin) (用于HTTP服务和API), [Gorilla WebSocket](https://github.com/gorilla/websocket) (用于实时通信)
+- **前端**: 原生 HTML, CSS, JavaScript (无框架)
+
+### Web部分目录结构
+
+```
+web/
+├── main.go         # Web服务器入口，包含所有后端逻辑
+├── static/
+│   ├── app.js      # 前端JavaScript，处理用户交互和与后端的通信
+│   └── style.css   # 前端样式文件
+└── templates/
+    └── index.html  # 应用主页的HTML模板
+```
+
+### 如何运行Web应用
+
+1.  确保你处于项目根目录。
+2.  运行以下命令启动Web服务器：
+    ```bash
+    go run web/main.go
+    ```
+3.  在你的浏览器中打开 `http://localhost:8080`。
+
+### API接口文档
+
+Web应用通过一套RESTful API和一个WebSocket接口与前端进行通信。
+
+#### 任务管理 API
+
+| 方法  | 路径             | 描述                 | 请求体示例                 | 成功响应 (JSON)                               |
+| :---- | :--------------- | :------------------- | :------------------------- | :-------------------------------------------- |
+| `GET` | `/api/tasks`     | 获取所有任务列表     | (无)                       | `[{"id": 1, "description": "学习Go"}, ...]` |
+| `POST`| `/api/tasks`     | 添加一个新任务       | `{"description": "新任务"}` | `{"id": 2, "description": "新任务", ...}`    |
+
+#### 实时计时器 (WebSocket)
+
+-   **连接地址**: `ws://localhost:8080/ws`
+
+-   **客户端 -> 服务器**: 客户端通过发送简单的文本指令来控制计时器。
+    -   `start`: 开始或恢复计时。
+    -   `pause`: 暂停计时。
+    -   `reset`: 重置计时器到默认的25分钟，并暂停。
+
+-   **服务器 -> 客户端**: 服务器会周期性地（每秒）向所有连接的客户端广播当前剩余时间。
+    -   **消息格式**: Go的 `time.Duration` 字符串，例如 `24m59s`。前端JavaScript负责将其解析并格式化为 `MM:SS` 的形式显示。
+
+
 ## 贡献
 
 欢迎提交PR或issue！
