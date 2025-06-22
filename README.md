@@ -1,4 +1,5 @@
 # Go番茄钟计时器
+this branch(feat/web) is just for me to study backend and frontend
 
 一个功能丰富的命令行番茄钟计时器，使用 Go 语言编写。
 
