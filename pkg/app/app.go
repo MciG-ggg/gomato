@@ -1,4 +1,4 @@
-package util
+package app
 
 import (
 	"bufio"
@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"gomato/common"
-	"gomato/config"
-	"gomato/task"
-	"gomato/timer"
+	"gomato/pkg/common"
+	"gomato/pkg/config"
+	"gomato/pkg/task"
+	"gomato/pkg/timer"
 )
 
 type App struct {
@@ -26,7 +26,6 @@ func NewApp() *App {
 	// read config from task.json
 	// 如果没有任务，则使用默认配置
 	// 如果有任务，则使用任务中的配置
-	// TODO: load setting
 	cfg := config.DefaultTaskConfig
 	loadedTask, _ := timer.LoadTask()
 
@@ -37,7 +36,7 @@ func NewApp() *App {
 	}
 
 	app := &App{
-		timer: timer.NewTimer(cfg, false),
+		timer: timer.NewTimer(cfg),
 		tasks: task.NewTaskManager(),
 		cfg:   &cfg,
 		task:  loadedTask,
@@ -105,7 +104,7 @@ func (a *App) Run() {
 	go a.handleCommands(cmdChan)
 
 	// 创建新的 Timer 实例
-	a.timer = timer.NewTimer(*a.cfg, false)
+	a.timer = timer.NewTimer(*a.cfg)
 	go a.timer.Start()
 
 	for {

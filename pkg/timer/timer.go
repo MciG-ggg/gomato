@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"gomato/common"
-	"gomato/config"
-	"gomato/setting"
+	"gomato/pkg/common"
+	"gomato/pkg/config"
+	"gomato/pkg/setting"
 )
 
 // TimerDisplay 定义了计时器时间显示的接口
@@ -145,7 +145,7 @@ type Stats struct {
 	TotalWorkTime time.Duration
 }
 
-func NewTimer(cfg config.TaskConfig, autoStart bool) *Timer {
+func NewTimer(cfg config.TaskConfig) *Timer {
 	// 尝试加载已保存的任务
 	task, _ := LoadTask()
 	if task != nil {

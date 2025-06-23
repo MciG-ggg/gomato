@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gomato/config"
+	"gomato/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -18,7 +18,7 @@ type TimerTestSuite struct {
 
 func (s *TimerTestSuite) SetupTest() {
 	cfg := config.DefaultTaskConfig
-	s.timer = NewTimer(cfg, false)
+	s.timer = NewTimer(cfg)
 }
 
 func (s *TimerTestSuite) TearDownTest() {
@@ -29,17 +29,17 @@ func (s *TimerTestSuite) TearDownTest() {
 
 func (s *TimerTestSuite) TestNewTimer() {
 	// 测试手动开始模式
-	timer := NewTimer(config.DefaultTaskConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
 
 	// 测试自动开始模式
-	timer = NewTimer(config.DefaultTaskConfig, true)
+	timer = NewTimer(config.DefaultTaskConfig)
 	assert.NotNil(s.T(), timer, "Timer 实例不应为 nil")
 }
 
 func (s *TimerTestSuite) TestWorkSessionCounting() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultTaskConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -63,7 +63,7 @@ func (s *TimerTestSuite) TestWorkSessionCounting() {
 
 func (s *TimerTestSuite) TestBreakSessionCounting() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultTaskConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -87,7 +87,7 @@ func (s *TimerTestSuite) TestBreakSessionCounting() {
 
 func (s *TimerTestSuite) TestTotalWorkTime() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultTaskConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -111,7 +111,7 @@ func (s *TimerTestSuite) TestTotalWorkTime() {
 
 func (s *TimerTestSuite) TestPauseAndResume() {
 	// 创建一个新的计时器
-	timer := NewTimer(config.DefaultTaskConfig, false)
+	timer := NewTimer(config.DefaultTaskConfig)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -146,7 +146,7 @@ func (s *TimerTestSuite) TestBreakChoice() {
 	}
 
 	// 创建一个新的计时器
-	timer := NewTimer(testConfig, false)
+	timer := NewTimer(testConfig)
 
 	// 启动计时器（在后台运行）
 	go timer.Start()
@@ -183,7 +183,7 @@ func (s *TimerTestSuite) TestWorkAndRestCycles() {
 		BreakDuration: 2 * time.Second, // 改为2秒，确保至少有一个完整的tick
 		TaskName:      "循环测试任务",
 	}
-	timer := NewTimer(testConfig, false)
+	timer := NewTimer(testConfig)
 
 	// 显式设置计时器的配置，以确保使用测试值，覆盖任何加载的任务配置。
 	timer.config.WorkDuration = testConfig.WorkDuration
@@ -259,7 +259,7 @@ func (s *TimerTestSuite) TestPauseResumeRealPause() {
 		BreakDuration: 1 * time.Second,
 		TaskName:      "暂停恢复测试",
 	}
-	timer := NewTimer(testConfig, false)
+	timer := NewTimer(testConfig)
 	go timer.Start()
 	// 启动计时器
 	time.Sleep(100 * time.Millisecond)

@@ -1,13 +1,13 @@
-package main
+package menu
 
 import (
 	"bufio"
 	"fmt"
-	"gomato/common"
-	"gomato/setting"
-	"gomato/task"
-	"gomato/timer"
-	"gomato/util"
+	"gomato/pkg/app"
+	"gomato/pkg/common"
+	"gomato/pkg/setting"
+	"gomato/pkg/task"
+	"gomato/pkg/timer"
 	"os"
 	"strconv"
 	"strings"
@@ -16,13 +16,13 @@ import (
 
 // Menu 表示应用程序的主菜单
 type Menu struct {
-	app         *util.App
+	app         *app.App
 	taskManager *task.TaskManager
 	reader      *bufio.Reader
 }
 
 // NewMenu 创建一个新的菜单实例
-func NewMenu(app *util.App, taskManager *task.TaskManager) *Menu {
+func NewMenu(app *app.App, taskManager *task.TaskManager) *Menu {
 	return &Menu{
 		app:         app,
 		taskManager: taskManager,
@@ -205,7 +205,7 @@ func (m *Menu) handleStartTask() {
 	}
 
 	// 创建新的 Timer 实例并启动
-	newTimer := timer.NewTimer(*m.app.GetConfig(), false)
+	newTimer := timer.NewTimer(*m.app.GetConfig())
 	m.app.SetTimer(newTimer)
 	m.app.Run()
 }

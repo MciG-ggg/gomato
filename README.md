@@ -5,13 +5,17 @@
 ## 目录结构
 
 ```
-common/   # 终端颜色与通用输出
-config/   # 配置结构体与默认配置
-menu.go   # 主菜单与交互逻辑
-main.go   # 程序入口
-util/     # 应用主逻辑、命令处理、快捷键、统计等
-timer/    # 番茄钟计时器核心、任务存储与计时逻辑
-task/     # 任务管理（增删查改、持久化）
+cmd/
+  gomato/
+    main.go         # 程序入口，负责依赖注入和启动
+pkg/
+  app/              # 应用主逻辑，命令处理
+  menu/             # 菜单与交互逻辑
+  timer/            # 计时器核心，任务存储与计时逻辑
+  task/             # 任务管理（增删查改、持久化）
+  setting/          # 应用设置管理
+  config/           # 配置结构体与默认值
+  common/           # 通用工具（如终端颜色）
 ```
 
 ## 功能特点
@@ -32,17 +36,19 @@ task/     # 任务管理（增删查改、持久化）
 2. 克隆此仓库
 3. 运行程序：
 
+### 方式一：直接运行（推荐）
 ```bash
-# 基本运行
-go run main.go
-
-# 使用命令行参数
-go run main.go --name "我的任务"  # 设置任务名称
+go run cmd/gomato/main.go
 ```
 
-## 命令行参数
+### 方式二：编译后运行
+```bash
+# 编译
+go build -o gomato cmd/gomato/main.go
 
-- `--name` - 设置任务名称（默认：默认任务）
+# 运行
+./gomato
+```
 
 ## 菜单操作
 
@@ -129,8 +135,7 @@ go run main.go --name "我的任务"  # 设置任务名称
 
 ## 开发与测试
 
-- 主要代码分布在 `main.go`, `menu.go`, `util/`, `timer/`, `task/`, `config/`, `common/` 等目录
-- 单元测试位于 `util/util_test.go`, `timer/timer_test.go` 等
+- 代码遵循 `cmd/` 和 `pkg/` 的标准 Go 项目布局
 - 运行全部测试：
 
 ```bash
@@ -139,6 +144,7 @@ go test ./...
 
 ## 最近更新
 
+- ✨ **项目结构重构**：采用 `cmd` 和 `pkg` 标准布局，提升可维护性。
 - ✨ 新增ANSI字符艺术计时器显示功能
 - ⚙️ 添加设置菜单，支持时间显示格式配置
 - 🔧 重构配置管理，优化代码结构
