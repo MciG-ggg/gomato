@@ -66,8 +66,11 @@ func (a *AnsiTimerDisplay) ShowTime(phase string, minutes, seconds int) {
 	// 在顶部打印阶段标题
 	fmt.Printf("%s%s%s\n\n", phaseColor, phase, common.Reset)
 
-	m1 := minutes / 10
-	m2 := minutes % 10
+	hours := minutes / 60
+	mins := minutes % 60
+
+	m1 := mins / 10
+	m2 := mins % 10
 	s1 := seconds / 10
 	s2 := seconds % 10
 
@@ -77,13 +80,32 @@ func (a *AnsiTimerDisplay) ShowTime(phase string, minutes, seconds int) {
 	asciiS1 := ASCIINumbers[s1]
 	asciiS2 := ASCIINumbers[s2]
 
-	// 逐行打印组合的 ASCII 艺术
-	for i := 0; i < 5; i++ { // 数字有5行高
-		fmt.Printf("%s %s  %s  %s%s %s  %s %s%s\n",
-			common.White, asciiM1[i], asciiM2[i],
-			phaseColor, ASCIISeparator[i],
-			common.White, asciiS1[i], asciiS2[i],
-			common.Reset)
+	if hours > 0 {
+		h1 := hours / 10
+		h2 := hours % 10
+		asciiH1 := ASCIINumbers[h1]
+		asciiH2 := ASCIINumbers[h2]
+		for i := 0; i < 5; i++ {
+			h1Str := common.White + asciiH1[i] + common.Reset
+			h2Str := common.White + asciiH2[i] + common.Reset
+			sep1 := phaseColor + ASCIISeparator[i] + common.Reset
+			m1Str := common.White + asciiM1[i] + common.Reset
+			m2Str := common.White + asciiM2[i] + common.Reset
+			sep2 := phaseColor + ASCIISeparator[i] + common.Reset
+			s1Str := common.White + asciiS1[i] + common.Reset
+			s2Str := common.White + asciiS2[i] + common.Reset
+			fmt.Printf("%s %s %s %s %s %s %s %s\n",
+				h1Str, h2Str, sep1, m1Str, m2Str, sep2, s1Str, s2Str)
+		}
+	} else {
+		for i := 0; i < 5; i++ {
+			m1Str := common.White + asciiM1[i] + common.Reset
+			m2Str := common.White + asciiM2[i] + common.Reset
+			sep1 := phaseColor + ASCIISeparator[i] + common.Reset
+			s1Str := common.White + asciiS1[i] + common.Reset
+			s2Str := common.White + asciiS2[i] + common.Reset
+			fmt.Printf("%s %s %s %s %s\n", m1Str, m2Str, sep1, s1Str, s2Str)
+		}
 	}
 }
 
