@@ -185,7 +185,7 @@ func (m model) View() string {
 }
 
 func main() {
-	if _, err := tea.NewProgram(initialModel()).Run(); err != nil {
+	if _, err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("出错:", err)
 		os.Exit(1)
 	}
