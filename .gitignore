@@ -11,7 +11,7 @@
 *.so
 *.dylib
 *.test
-gomato
+/gomato
 
 # 临时文件
 *.out
