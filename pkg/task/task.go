@@ -9,11 +9,12 @@ import (
 )
 
 type Task struct {
-	ID          int       `json:"id"`
-	Description string    `json:"description"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
-	Completed   bool      `json:"completed"`
+	ID           int           `json:"id"`
+	Description  string        `json:"description"`
+	StartTime    time.Time     `json:"start_time"`
+	EndTime      time.Time     `json:"end_time"`
+	Completed    bool          `json:"completed"`
+	UsedDuration time.Duration `json:"used_duration"`
 }
 
 type TaskManager struct {
@@ -98,6 +99,15 @@ func (tm *TaskManager) GetTaskByID(id int) (*Task, error) {
 		}
 	}
 	return nil, fmt.Errorf("任务 %d 不存在", id)
+}
+
+func (tm *TaskManager) GetTaskByName(name string) (*Task, error) {
+	for _, task := range tm.tasks {
+		if task.Description == name {
+			return task, nil
+		}
+	}
+	return nil, fmt.Errorf("任务 %s 不存在", name)
 }
 
 func (tm *TaskManager) Save() error {

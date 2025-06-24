@@ -16,10 +16,11 @@ import (
 )
 
 type App struct {
-	timer *timer.Timer
-	tasks *task.TaskManager
-	cfg   *config.TaskConfig
-	task  *timer.Task
+	timer         *timer.Timer
+	tasks         *task.TaskManager
+	cfg           *config.TaskConfig
+	task          *timer.Task
+	workStartTime time.Time
 }
 
 func NewApp() *App {
@@ -114,7 +115,7 @@ func (a *App) Run() {
 			return
 		case cmd := <-cmdChan:
 			if cmd == "quit" {
-				a.timer.Stop()
+				a.quit()
 				return
 			}
 			a.processCommand(cmd)
@@ -145,12 +146,15 @@ func (a *App) processCommand(cmd string) {
 	switch {
 	case cmd == "y":
 		a.timer.StartRest()
+		a.addUsedDuration()
 	case cmd == "n":
 		a.timer.EndRest()
+		a.addUsedDuration()
 	case cmd == "help":
 		printHelp()
 	case cmd == "start":
 		a.timer.TriggerStart()
+		a.workStartTime = time.Now()
 		fmt.Printf("%s开始计时！%s\n", common.Green, common.Reset)
 	case cmd == "stats":
 		a.printStats()
@@ -158,8 +162,10 @@ func (a *App) processCommand(cmd string) {
 		a.printTasks()
 	case cmd == "pause":
 		a.timer.Pause()
+		a.addUsedDuration()
 	case cmd == "resume":
 		a.timer.Resume()
+		a.workStartTime = time.Now()
 	case strings.HasPrefix(cmd, "add "):
 		a.addTask(strings.TrimPrefix(cmd, "add "))
 	case strings.HasPrefix(cmd, "complete "):
@@ -228,6 +234,7 @@ func (a *App) setBreakDuration(duration string) {
 }
 
 func (a *App) printStats() {
+	a.tasks.Load()
 	stats := a.timer.GetStats()
 	totalTasks, completedTasks := a.tasks.GetTaskStats()
 
@@ -242,6 +249,7 @@ func (a *App) printStats() {
 }
 
 func (a *App) printTasks() {
+	a.tasks.Load()
 	tasks := a.tasks.ListTasks()
 	if len(tasks) == 0 {
 		fmt.Printf("\n%s当前没有任务%s\n", common.Yellow, common.Reset)
@@ -256,15 +264,19 @@ func (a *App) printTasks() {
 			status = "已完成"
 			statusColor = common.Green
 		}
-		fmt.Printf("%s[%d]%s %s - %s%s%s\n",
+		usedSeconds := int64(task.UsedDuration.Seconds())
+		fmt.Printf("%s[%d]%s %s - %s%s%s 已用时长: %d秒\n",
 			common.Blue, task.ID, common.Reset,
 			task.Description,
-			statusColor, status, common.Reset)
+			statusColor, status, common.Reset,
+			usedSeconds)
 	}
 }
 
 func (a *App) quit() {
+	a.addUsedDuration()
 	fmt.Printf("\n%s正在退出程序...%s\n", common.Yellow, common.Reset)
+	a.saveTasks()
 	a.timer.Stop()
 }
 
@@ -324,4 +336,16 @@ func printHelp() {
 	fmt.Printf("%s  t                 - %s显示任务%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  h                 - %s显示帮助%s\n", common.Blue, common.White, common.Reset)
 	fmt.Printf("%s  q                 - %s退出程序%s\n", common.Blue, common.White, common.Reset)
+}
+
+func (a *App) addUsedDuration() {
+	if !a.workStartTime.IsZero() && a.task != nil {
+		duration := time.Since(a.workStartTime)
+		t, err := a.tasks.GetTaskByName(a.cfg.TaskName)
+		if err == nil {
+			t.UsedDuration += duration
+			a.tasks.Save()
+		}
+		a.workStartTime = time.Time{}
+	}
 }
