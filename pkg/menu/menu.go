@@ -9,6 +9,8 @@ import (
 	"gomato/pkg/task"
 	"gomato/pkg/timer"
 	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -30,21 +32,31 @@ func NewMenu(app *app.App, taskManager *task.TaskManager) *Menu {
 	}
 }
 
+// clearScreen clears the terminal screen
+func clearScreen() {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "cls")
+	} else {
+		cmd = exec.Command("clear")
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+}
+
 func (m *Menu) Display() {
-	fmt.Println("==========================")
-	fmt.Println("=== 番茄钟任务管理器 ===")
-	fmt.Println("==========================")
-	fmt.Println("1. 添加新任务")
-	fmt.Println("2. 查看所有任务")
-	fmt.Println("3. 查看最近任务")
-	fmt.Println("4. 开始专注任务")
-	fmt.Println("5. 标记任务完成")
-	fmt.Println("6. 删除任务")
-	fmt.Println("7. 清空所有任务")
-	fmt.Println("8. setting 设置")
-	fmt.Println("9. 退出")
-	fmt.Println("==========================")
-	fmt.Print("请选择操作 (1-9): ")
+	clearScreen()
+	fmt.Printf("%s%s🍅 番茄钟任务管理器 %s\n\n", common.Bold, common.Cyan, common.Reset)
+	fmt.Printf("  %s1.%s 添加新任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s2.%s 查看所有任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s3.%s 查看最近任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s4.%s 开始专注任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s5.%s 标记任务完成\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s6.%s 删除任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s7.%s 清空所有任务\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s8.%s setting 设置\n", common.Yellow, common.Reset)
+	fmt.Printf("  %s9.%s 退出\n\n", common.Yellow, common.Reset)
+	fmt.Printf("%s请选择操作 (1-9): %s", common.Bold, common.Reset)
 }
 
 func (m *Menu) HandleChoice(choice string) bool {
