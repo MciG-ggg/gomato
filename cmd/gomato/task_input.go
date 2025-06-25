@@ -1,15 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type taskInputModel struct {
-	inputs  []textinput.Model
-	focused int
-	err     error
+	inputs       []textinput.Model
+	focused      int
+	err          error
+	submitButton string
 }
 
 type taskCreatedMsg struct {
@@ -33,9 +37,10 @@ func NewTaskInputModel() taskInputModel {
 	inputs[1].Width = 50
 
 	return taskInputModel{
-		inputs:  inputs,
-		focused: 0,
-		err:     nil,
+		inputs:       inputs,
+		focused:      0,
+		err:          nil,
+		submitButton: "Create",
 	}
 }
 
@@ -51,8 +56,7 @@ func (m taskInputModel) Update(msg tea.Msg) (taskInputModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			if m.focused == len(m.inputs)-1 {
-				// Last input, create task
+			if m.focused == len(m.inputs) { // On "Create" button
 				return m, func() tea.Msg {
 					return taskCreatedMsg{
 						title:       m.inputs[0].Value(),
@@ -79,11 +83,17 @@ func (m taskInputModel) Update(msg tea.Msg) (taskInputModel, tea.Cmd) {
 }
 
 func (m *taskInputModel) nextInput() {
-	m.focused = (m.focused + 1) % len(m.inputs)
-	for i := 0; i < len(m.inputs); i++ {
+	m.focused = (m.focused + 1) % (len(m.inputs) + 1) // +1 for the button
+	if m.focused == len(m.inputs) {
+		// Focused on button
+		m.inputs[0].Blur()
+		m.inputs[1].Blur()
+		return
+	}
+	for i := 0; i <= len(m.inputs)-1; i++ {
 		if i == m.focused {
 			m.inputs[i].Focus()
-			m.inputs[i].PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Placeholder style
+			m.inputs[i].PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 		} else {
 			m.inputs[i].Blur()
 			m.inputs[i].PromptStyle = lipgloss.NewStyle()
@@ -94,9 +104,17 @@ func (m *taskInputModel) nextInput() {
 func (m *taskInputModel) prevInput() {
 	m.focused--
 	if m.focused < 0 {
-		m.focused = len(m.inputs) - 1
+		m.focused = len(m.inputs)
 	}
-	for i := 0; i < len(m.inputs); i++ {
+
+	if m.focused == len(m.inputs) {
+		// Focused on button
+		m.inputs[0].Blur()
+		m.inputs[1].Blur()
+		return
+	}
+
+	for i := 0; i <= len(m.inputs)-1; i++ {
 		if i == m.focused {
 			m.inputs[i].Focus()
 			m.inputs[i].PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -108,11 +126,25 @@ func (m *taskInputModel) prevInput() {
 }
 
 func (m taskInputModel) View() string {
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		"Create a new task",
-		m.inputs[0].View(),
-		m.inputs[1].View(),
-		"(press enter to confirm, esc to cancel)",
-	)
+	var b strings.Builder
+
+	b.WriteString("Create a new task\n\n")
+
+	for i := range m.inputs {
+		b.WriteString(m.inputs[i].View())
+		if i < len(m.inputs)-1 {
+			b.WriteRune('\n')
+		}
+	}
+
+	button := "> " + m.submitButton
+	if m.focused == len(m.inputs) {
+		button = "> " + lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.submitButton)
+	}
+
+	fmt.Fprintf(&b, "\n\n%s\n\n", button)
+
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press esc to cancel)"))
+
+	return b.String()
 }
