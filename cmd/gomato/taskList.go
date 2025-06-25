@@ -1,89 +1,66 @@
+// taskList.go - TUI界面列表组件和委托处理
+// 负责定义列表项的按键映射、委托处理函数等
 package main
 
 import (
+	"gomato/pkg/keymap"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type delegateKeyMap struct {
-	choose key.Binding
-	remove key.Binding
-}
-
-func newDelegateKeyMap() *delegateKeyMap {
-	return &delegateKeyMap{
-		choose: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "choose"),
-		),
-		remove: key.NewBinding(
-			key.WithKeys("x", "backspace"),
-			key.WithHelp("x", "delete"),
-		),
-	}
-}
-
-func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
+// newItemDelegate 创建列表项的委托处理函数
+// 负责处理列表项的选择、删除等交互操作
+func newItemDelegate(keys *keymap.DelegateKeyMap) list.DefaultDelegate {
+	// 创建默认委托
 	d := list.NewDefaultDelegate()
 
+	// 设置更新函数，处理用户交互
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
 
+		// 获取当前选中项目的标题
 		if i, ok := m.SelectedItem().(item); ok {
 			title = i.Title()
 		} else {
-			return nil
+			return nil // 如果没有选中项目，直接返回
 		}
 
+		// 根据消息类型处理不同的按键操作
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch {
-			case key.Matches(msg, keys.choose):
+			case key.Matches(msg, keys.Choose):
+				// 处理选择操作
 				return m.NewStatusMessage(statusMessageStyle("You chose " + title))
 
-			case key.Matches(msg, keys.remove):
-				index := m.Index()
-				m.RemoveItem(index)
+			case key.Matches(msg, keys.Remove):
+				// 处理删除操作
+				index := m.Index()  // 获取当前选中项目的索引
+				m.RemoveItem(index) // 从列表中移除项目
 				if len(m.Items()) == 0 {
-					keys.remove.SetEnabled(false)
+					keys.Remove.SetEnabled(false) // 如果列表为空，禁用删除键
 				}
 				return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
 			}
 		}
 
-		return nil
+		return nil // 没有匹配的操作，返回空命令
 	}
 
-	help := []key.Binding{keys.choose, keys.remove}
+	// 设置帮助信息
+	help := []key.Binding{keys.Choose, keys.Remove}
 
+	// 设置简短帮助函数
 	d.ShortHelpFunc = func() []key.Binding {
 		return help
 	}
 
+	// 设置完整帮助函数
 	d.FullHelpFunc = func() [][]key.Binding {
 		return [][]key.Binding{help}
 	}
 
 	return d
-}
-
-// Additional short help entries. This satisfies the help.KeyMap interface and
-// is entirely optional.
-func (d delegateKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{
-		d.choose,
-		d.remove,
-	}
-}
-
-// Additional full help entries. This satisfies the help.KeyMap interface and
-// is entirely optional.
-func (d delegateKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{
-			d.choose,
-			d.remove,
-		},
-	}
 }

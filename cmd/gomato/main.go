@@ -1,3 +1,4 @@
+// 注释掉的原始命令行界面代码
 // package main
 
 // import (
@@ -63,11 +64,14 @@
 //		}
 //	}
 
+// TUI界面主程序 - 使用Bubble Tea框架构建现代化的终端用户界面
 package main
 
 import (
 	"fmt"
 	"os"
+
+	"gomato/pkg/keymap"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -75,150 +79,183 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// 全局样式定义 - 使用lipgloss库定义终端UI样式
 var (
+	// 应用整体样式 - 添加内边距，美化界面布局
 	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
+	// 标题样式 - 白色文字，绿色背景，突出显示标题
 	titleStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#25A065")).
 			Padding(0, 1)
 
+	// 状态消息样式 - 自适应颜色，支持浅色/深色主题
 	statusMessageStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
 				Render
 )
 
+const (
+	// viewState 定义当前视图状态 - 用于切换不同的UI视图
+	taskListView = iota // 0: 默认视图
+	timeView            // 1: 时间视图（番茄钟计时器）
+)
+
+// viewState 定义视图状态的类型
+type viewState int
+
+// item 定义列表项结构 - 实现list.Item接口
 type item struct {
-	title       string
-	description string
+	title       string // 项目标题
+	description string // 项目描述
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.description }
-func (i item) FilterValue() string { return i.title }
+// 实现list.Item接口的必需方法
+func (i item) Title() string       { return i.title }       // 返回项目标题
+func (i item) Description() string { return i.description } // 返回项目描述
+func (i item) FilterValue() string { return i.title }       // 返回用于搜索过滤的值
 
-type listKeyMap struct {
-	toggleSpinner    key.Binding
-	toggleTitleBar   key.Binding
-	toggleStatusBar  key.Binding
-	togglePagination key.Binding
-	toggleHelpMenu   key.Binding
-	insertItem       key.Binding
-}
-
-func newListKeyMap() *listKeyMap {
-	return &listKeyMap{
-		insertItem: key.NewBinding(
-			key.WithKeys("a"),
-			key.WithHelp("a", "add item"),
-		),
-		toggleSpinner: key.NewBinding(
-			key.WithKeys("s"),
-			key.WithHelp("s", "toggle spinner"),
-		),
-		toggleTitleBar: key.NewBinding(
-			key.WithKeys("T"),
-			key.WithHelp("T", "toggle title"),
-		),
-		toggleStatusBar: key.NewBinding(
-			key.WithKeys("S"),
-			key.WithHelp("S", "toggle status"),
-		),
-		togglePagination: key.NewBinding(
-			key.WithKeys("P"),
-			key.WithHelp("P", "toggle pagination"),
-		),
-		toggleHelpMenu: key.NewBinding(
-			key.WithKeys("H"),
-			key.WithHelp("H", "toggle help"),
-		),
-	}
-}
-
+// model 定义应用程序的数据模型 - Bubble Tea的核心数据结构
 type model struct {
-	list         list.Model
-	keys         *listKeyMap
-	delegateKeys *delegateKeyMap
+	// general
+	currentView viewState
+
+	// taskListView
+	list         list.Model             // 列表组件，显示任务列表
+	keys         *keymap.ListKeyMap     // 列表操作的按键映射
+	delegateKeys *keymap.DelegateKeyMap // 列表项的委托按键映射
+	timeViewKeys *keymap.TimeViewKeyMap // 番茄钟视图按键映射
 }
 
+// newModel 创建并返回初始化的模型实例
+// 设置初始数据、样式和按键绑定
 func newModel() model {
 	var (
-		delegateKeys = newDelegateKeyMap()
-		listKeys     = newListKeyMap()
+		delegateKeys = keymap.NewDelegateKeyMap() // 创建委托按键映射
+		listKeys     = keymap.NewListKeyMap()     // 创建列表按键映射
+		timeViewKeys = keymap.NewTimeViewKeyMap() // 创建番茄钟按键映射
 	)
 
-	// Make initial list of items
+	// 创建初始列表项（示例数据）
+	// TODO: 从实际数据源加载任务列表
 	const numItems = 24
 	items := make([]list.Item, numItems)
-	// Setup list
-	delegate := newItemDelegate(delegateKeys)
+	for i := range numItems {
+		items[i] = item{
+			title:       fmt.Sprintf("任务 %d", i+1),
+			description: fmt.Sprintf("这是任务 %d 的描述", i+1),
+		}
+	}
+
+	// 设置列表组件
+	delegate := newItemDelegate(delegateKeys) // 创建项目委托（在taskList.go中定义）
 	groceryList := list.New(items, delegate, 0, 0)
-	groceryList.Title = "Groceries"
-	groceryList.Styles.Title = titleStyle
+	groceryList.Title = "番茄钟任务列表"         // 设置列表标题
+	groceryList.Styles.Title = titleStyle // 应用标题样式
 	groceryList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			listKeys.toggleSpinner,
-			listKeys.insertItem,
-			listKeys.toggleTitleBar,
-			listKeys.toggleStatusBar,
-			listKeys.togglePagination,
-			listKeys.toggleHelpMenu,
+			listKeys.ToggleSpinner,
+			listKeys.InsertItem,
+			listKeys.ToggleTitleBar,
+			listKeys.ToggleStatusBar,
+			listKeys.TogglePagination,
+			listKeys.ToggleHelpMenu,
 		}
 	}
 
 	return model{
+		currentView:  taskListView, // 设置初始视图为任务列表视图
 		list:         groceryList,
 		keys:         listKeys,
 		delegateKeys: delegateKeys,
+		timeViewKeys: timeViewKeys,
 	}
 }
 
+// Init 初始化模型，返回初始命令
+// Bubble Tea生命周期方法，在程序启动时调用
 func (m model) Init() tea.Cmd {
-	return nil
+	return nil // 不需要初始命令
 }
 
+// Update 处理消息并更新模型
+// Bubble Tea的核心方法，处理所有用户输入和系统事件
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		// 处理窗口大小变化事件
 		h, v := appStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 
 	case tea.KeyMsg:
-		// Don't match any of the keys below if we're actively filtering.
-		if m.list.FilterState() == list.Filtering {
-			break
+		switch m.currentView {
+		case taskListView:
+			// 处理任务列表视图的按键消息
+			// 如果正在过滤模式，不处理其他按键操作
+			if m.list.FilterState() == list.Filtering {
+				break
+			}
+
+			// 处理各种按键操作
+			switch {
+			case key.Matches(msg, m.keys.ToggleSpinner):
+				// 切换加载动画显示
+				cmd := m.list.ToggleSpinner()
+				return m, cmd
+
+			case key.Matches(msg, m.keys.ToggleTitleBar):
+				// 切换标题栏显示，同时控制过滤功能
+				v := !m.list.ShowTitle()
+				m.list.SetShowTitle(v)
+				m.list.SetShowFilter(v)
+				m.list.SetFilteringEnabled(v)
+				return m, nil
+
+			case key.Matches(msg, m.keys.ToggleStatusBar):
+				// 切换状态栏显示
+				m.list.SetShowStatusBar(!m.list.ShowStatusBar())
+				return m, nil
+
+			case key.Matches(msg, m.keys.TogglePagination):
+				// 切换分页显示
+				m.list.SetShowPagination(!m.list.ShowPagination())
+				return m, nil
+
+			case key.Matches(msg, m.keys.ToggleHelpMenu):
+				// 切换帮助菜单显示
+				m.list.SetShowHelp(!m.list.ShowHelp())
+				return m, nil
+
+			case key.Matches(msg, m.keys.InsertItem):
+				// TODO: 实现添加新项目的功能
+				// 这里可以添加创建新任务的逻辑
+
+			case key.Matches(msg, m.keys.ChooseTask):
+				// 处理选择任务操作
+				m.currentView = timeView // 切换到时间视图
+				return m, m.list.NewStatusMessage(statusMessageStyle("任务已选择，请继续操作"))
+			}
+		case timeView:
+			// 处理时间视图的按键消息
+			switch {
+			case key.Matches(msg, m.timeViewKeys.Back):
+				m.currentView = taskListView
+				return m, nil
+			case key.Matches(msg, m.timeViewKeys.StartPause):
+				// 你的开始/暂停逻辑
+				return m, nil
+			case key.Matches(msg, m.timeViewKeys.Reset):
+				// 你的重置逻辑
+				return m, nil
+			}
 		}
 
-		switch {
-		case key.Matches(msg, m.keys.toggleSpinner):
-			cmd := m.list.ToggleSpinner()
-			return m, cmd
-
-		case key.Matches(msg, m.keys.toggleTitleBar):
-			v := !m.list.ShowTitle()
-			m.list.SetShowTitle(v)
-			m.list.SetShowFilter(v)
-			m.list.SetFilteringEnabled(v)
-			return m, nil
-
-		case key.Matches(msg, m.keys.toggleStatusBar):
-			m.list.SetShowStatusBar(!m.list.ShowStatusBar())
-			return m, nil
-
-		case key.Matches(msg, m.keys.togglePagination):
-			m.list.SetShowPagination(!m.list.ShowPagination())
-			return m, nil
-
-		case key.Matches(msg, m.keys.toggleHelpMenu):
-			m.list.SetShowHelp(!m.list.ShowHelp())
-			return m, nil
-
-		case key.Matches(msg, m.keys.insertItem):
-		}
 	}
-	// This will also call our delegate's update function.
+
+	// 更新列表模型（这会同时调用委托的update函数）
 	newListModel, cmd := m.list.Update(msg)
 	m.list = newListModel
 	cmds = append(cmds, cmd)
@@ -226,13 +263,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// View 渲染模型到字符串
+// Bubble Tea生命周期方法，负责将数据模型转换为显示字符串
 func (m model) View() string {
-	return appStyle.Render(m.list.View())
+	switch m.currentView {
+	case taskListView:
+		return appStyle.Render(m.list.View()) // 应用样式并返回渲染结果
+	case timeView:
+		// 时间视图渲染逻辑
+		return appStyle.Render(
+			titleStyle.Render("番茄钟计时器") + "\n\n" +
+				"（此处显示番茄钟计时界面，功能开发中...）\n\n" +
+				statusMessageStyle("按 q 返回任务列表"),
+		)
+	default:
+		return "" // 未知视图状态，返回空字符串
+	}
 }
 
+// main 程序入口点
+// 创建并启动Bubble Tea程序
 func main() {
+	// 创建并运行Bubble Tea程序
+	// tea.WithAltScreen() 启用备用屏幕模式，提供更好的显示效果
 	if _, err := tea.NewProgram(newModel(), tea.WithAltScreen()).Run(); err != nil {
-		fmt.Println("Error running program:", err)
+		fmt.Println("运行程序时出错:", err)
 		os.Exit(1)
 	}
 }
