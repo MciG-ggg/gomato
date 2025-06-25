@@ -62,131 +62,177 @@
 //			}
 //		}
 //	}
+
 package main
 
 import (
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-type viewState int
+var (
+	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
-const (
-	menuView viewState = iota
-	timeView
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#25A065")).
+			Padding(0, 1)
+
+	statusMessageStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
+				Render
 )
 
-type displayMode int
+type item struct {
+	title       string
+	description string
+}
 
-const (
-	normal displayMode = iota
-	ansiArt
-)
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.description }
+func (i item) FilterValue() string { return i.title }
 
-var modeNames = []string{
-	"normal",
-	"ansiArt",
+type listKeyMap struct {
+	toggleSpinner    key.Binding
+	toggleTitleBar   key.Binding
+	toggleStatusBar  key.Binding
+	togglePagination key.Binding
+	toggleHelpMenu   key.Binding
+	insertItem       key.Binding
+}
+
+func newListKeyMap() *listKeyMap {
+	return &listKeyMap{
+		insertItem: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "add item"),
+		),
+		toggleSpinner: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "toggle spinner"),
+		),
+		toggleTitleBar: key.NewBinding(
+			key.WithKeys("T"),
+			key.WithHelp("T", "toggle title"),
+		),
+		toggleStatusBar: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "toggle status"),
+		),
+		togglePagination: key.NewBinding(
+			key.WithKeys("P"),
+			key.WithHelp("P", "toggle pagination"),
+		),
+		toggleHelpMenu: key.NewBinding(
+			key.WithKeys("H"),
+			key.WithHelp("H", "toggle help"),
+		),
+	}
 }
 
 type model struct {
-	// General state
-	currentView viewState
-
-	// Time view state
-	// TODO: should load from the json or timer struct(?)
-	mode displayMode
-
-	// Menu view state
-	menuItems    []string
-	selectedItem int
-	menuCursor   int
+	list         list.Model
+	keys         *listKeyMap
+	delegateKeys *delegateKeyMap
 }
 
-func initialModel() model {
+func newModel() model {
+	var (
+		delegateKeys = newDelegateKeyMap()
+		listKeys     = newListKeyMap()
+	)
+
+	// Make initial list of items
+	const numItems = 24
+	items := make([]list.Item, numItems)
+	// Setup list
+	delegate := newItemDelegate(delegateKeys)
+	groceryList := list.New(items, delegate, 0, 0)
+	groceryList.Title = "Groceries"
+	groceryList.Styles.Title = titleStyle
+	groceryList.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			listKeys.toggleSpinner,
+			listKeys.insertItem,
+			listKeys.toggleTitleBar,
+			listKeys.toggleStatusBar,
+			listKeys.togglePagination,
+			listKeys.toggleHelpMenu,
+		}
+	}
+
 	return model{
-		currentView: menuView,
-		mode:        normal,
-		menuItems: []string{
-			"添加新任务",
-			"查看所有任务",
-			"查看最近任务",
-			"开始专注任务",
-			"标记任务完成",
-			"删除任务",
-			"清空所有任务",
-			"设置",
-			"退出",
-		},
-		selectedItem: -1, // -1 means nothing is selected
-		menuCursor:   0,
+		list:         groceryList,
+		keys:         listKeys,
+		delegateKeys: delegateKeys,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	// Initialize the model, if needed
 	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		h, v := appStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
+
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "tab":
-			if m.currentView == menuView {
-				m.currentView = timeView
-			} else {
-				m.currentView = menuView
-			}
+		// Don't match any of the keys below if we're actively filtering.
+		if m.list.FilterState() == list.Filtering {
+			break
 		}
-		switch m.currentView {
-		case menuView:
-			switch msg.String() {
-			case "up", "k":
-				if m.menuCursor > 0 {
-					m.menuCursor--
-				}
-			case "down", "j":
-				if m.menuCursor < len(m.menuItems)-1 {
-					m.menuCursor++
-				}
-			case "enter":
-				// TODO: deal with entering the selected menu item
-			}
-		case timeView:
-			m.mode = normal // Reset mode when switching to time view
+
+		switch {
+		case key.Matches(msg, m.keys.toggleSpinner):
+			cmd := m.list.ToggleSpinner()
+			return m, cmd
+
+		case key.Matches(msg, m.keys.toggleTitleBar):
+			v := !m.list.ShowTitle()
+			m.list.SetShowTitle(v)
+			m.list.SetShowFilter(v)
+			m.list.SetFilteringEnabled(v)
+			return m, nil
+
+		case key.Matches(msg, m.keys.toggleStatusBar):
+			m.list.SetShowStatusBar(!m.list.ShowStatusBar())
+			return m, nil
+
+		case key.Matches(msg, m.keys.togglePagination):
+			m.list.SetShowPagination(!m.list.ShowPagination())
+			return m, nil
+
+		case key.Matches(msg, m.keys.toggleHelpMenu):
+			m.list.SetShowHelp(!m.list.ShowHelp())
+			return m, nil
+
+		case key.Matches(msg, m.keys.insertItem):
 		}
 	}
-	return m, nil
+	// This will also call our delegate's update function.
+	newListModel, cmd := m.list.Update(msg)
+	m.list = newListModel
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
-	switch m.currentView {
-	case menuView:
-		var sb strings.Builder
-		sb.WriteString("=== 番茄钟任务管理器 ===\n")
-		for i, item := range m.menuItems {
-			if i == m.menuCursor {
-				sb.WriteString("> " + item + "\n")
-			} else {
-				sb.WriteString("  " + item + "\n")
-			}
-		}
-		return sb.String()
-	case timeView:
-		return "Time View: Mode is " + modeNames[m.mode] + "\nPress 'tab' to switch back to menu."
-	default:
-		return "Unknown view"
-	}
+	return appStyle.Render(m.list.View())
 }
 
 func main() {
-	if _, err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Run(); err != nil {
-		fmt.Println("出错:", err)
+	if _, err := tea.NewProgram(newModel(), tea.WithAltScreen()).Run(); err != nil {
+		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
 }
