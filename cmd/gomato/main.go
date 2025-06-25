@@ -72,6 +72,7 @@ import (
 	"os"
 
 	"gomato/pkg/keymap"
+	"gomato/pkg/task"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -105,21 +106,11 @@ const (
 // viewState 定义视图状态的类型
 type viewState int
 
-// item 定义列表项结构 - 实现list.Item接口
-type item struct {
-	title       string // 项目标题
-	description string // 项目描述
-}
-
-// 实现list.Item接口的必需方法
-func (i item) Title() string       { return i.title }       // 返回项目标题
-func (i item) Description() string { return i.description } // 返回项目描述
-func (i item) FilterValue() string { return i.title }       // 返回用于搜索过滤的值
-
 // model 定义应用程序的数据模型 - Bubble Tea的核心数据结构
 type model struct {
 	// general
 	currentView viewState
+	taskManager *task.Manager
 
 	// taskListView
 	list         list.Model             // 列表组件，显示任务列表
@@ -137,15 +128,22 @@ func newModel() model {
 		timeViewKeys = keymap.NewTimeViewKeyMap() // 创建番茄钟按键映射
 	)
 
-	// 创建初始列表项（示例数据）
-	// TODO: 从实际数据源加载任务列表
-	const numItems = 24
-	items := make([]list.Item, numItems)
-	for i := range numItems {
-		items[i] = item{
-			title:       fmt.Sprintf("任务 %d", i+1),
-			description: fmt.Sprintf("这是任务 %d 的描述", i+1),
-		}
+	// 创建任务管理器
+	taskManager, err := task.NewManager()
+	if err != nil {
+		fmt.Println("创建任务管理器失败:", err)
+		os.Exit(1)
+	}
+
+	// 如果没有任务，创建一个欢迎任务
+	if len(taskManager.Tasks) == 0 {
+		taskManager.AddItem("欢迎使用Gomato!", "这是一个番茄钟应用，希望能帮助你提高效率。")
+	}
+
+	// 将 task.Task 转换为 list.Item
+	items := make([]list.Item, len(taskManager.Tasks))
+	for i, t := range taskManager.Tasks {
+		items[i] = t
 	}
 
 	// 设置列表组件
@@ -170,6 +168,7 @@ func newModel() model {
 		keys:         listKeys,
 		delegateKeys: delegateKeys,
 		timeViewKeys: timeViewKeys,
+		taskManager:  taskManager,
 	}
 }
 
@@ -230,8 +229,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 
 			case key.Matches(msg, m.keys.InsertItem):
-				// TODO: 实现添加新项目的功能
-				// 这里可以添加创建新任务的逻辑
+				// 添加新项目
+				m.taskManager.AddItem("新任务", "这是一个新任务")
+				// 在列表视图中插入新项
+				// 获取新任务，它应该是taskManager.Tasks中的最后一项
+				newTask := m.taskManager.Tasks[len(m.taskManager.Tasks)-1]
+				insertCmd := m.list.InsertItem(len(m.list.Items()), newTask)
+				statusCmd := m.list.NewStatusMessage(statusMessageStyle("添加了新任务: " + newTask.Title()))
+				return m, tea.Batch(insertCmd, statusCmd)
+
+			case key.Matches(msg, m.delegateKeys.Remove):
+				// 处理删除任务操作
+				index := m.list.Index()
+				if index >= 0 && index < len(m.taskManager.Tasks) {
+					deletedTaskTitle := m.taskManager.Tasks[index].Title()
+					m.taskManager.DeleteItem(index)
+					m.list.RemoveItem(index)
+					if len(m.list.Items()) == 0 {
+						m.delegateKeys.Remove.SetEnabled(false)
+					}
+					return m, m.list.NewStatusMessage(statusMessageStyle("删除了任务: " + deletedTaskTitle))
+				}
 
 			case key.Matches(msg, m.keys.ChooseTask):
 				// 处理选择任务操作

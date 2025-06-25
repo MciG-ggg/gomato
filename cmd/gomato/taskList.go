@@ -4,6 +4,7 @@ package main
 
 import (
 	"gomato/pkg/keymap"
+	"gomato/pkg/task"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -21,7 +22,7 @@ func newItemDelegate(keys *keymap.DelegateKeyMap) list.DefaultDelegate {
 		var title string
 
 		// 获取当前选中项目的标题
-		if i, ok := m.SelectedItem().(item); ok {
+		if i, ok := m.SelectedItem().(task.Task); ok {
 			title = i.Title()
 		} else {
 			return nil // 如果没有选中项目，直接返回
@@ -34,15 +35,6 @@ func newItemDelegate(keys *keymap.DelegateKeyMap) list.DefaultDelegate {
 			case key.Matches(msg, keys.Choose):
 				// 处理选择操作
 				return m.NewStatusMessage(statusMessageStyle("You chose " + title))
-
-			case key.Matches(msg, keys.Remove):
-				// 处理删除操作
-				index := m.Index()  // 获取当前选中项目的索引
-				m.RemoveItem(index) // 从列表中移除项目
-				if len(m.Items()) == 0 {
-					keys.Remove.SetEnabled(false) // 如果列表为空，禁用删除键
-				}
-				return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
 			}
 		}
 
