@@ -100,7 +100,8 @@ var (
 const (
 	// viewState 定义当前视图状态 - 用于切换不同的UI视图
 	taskListView = iota // 0: 默认视图
-	timeView            // 1: 时间视图（番茄钟计时器）
+	taskInputView
+	timeView // 2: 时间视图（番茄钟计时器）
 )
 
 // viewState 定义视图状态的类型
@@ -112,10 +113,13 @@ type model struct {
 	currentView viewState
 	taskManager *task.Manager
 
-	// taskListView
+	// views
 	list         list.Model             // 列表组件，显示任务列表
-	keys         *keymap.ListKeyMap     // 列表操作的按键映射
+	taskInput    taskInputModel         // 任务输入视图
 	delegateKeys *keymap.DelegateKeyMap // 列表项的委托按键映射
+
+	// keys
+	keys         *keymap.ListKeyMap     // 列表操作的按键映射
 	timeViewKeys *keymap.TimeViewKeyMap // 番茄钟视图按键映射
 }
 
@@ -165,6 +169,7 @@ func newModel() model {
 	return model{
 		currentView:  taskListView, // 设置初始视图为任务列表视图
 		list:         groceryList,
+		taskInput:    NewTaskInputModel(),
 		keys:         listKeys,
 		delegateKeys: delegateKeys,
 		timeViewKeys: timeViewKeys,
@@ -184,6 +189,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case taskCreatedMsg:
+		m.taskManager.AddItem(msg.title, msg.description)
+		newTask := m.taskManager.Tasks[len(m.taskManager.Tasks)-1]
+		insertCmd := m.list.InsertItem(len(m.list.Items()), newTask)
+		statusCmd := m.list.NewStatusMessage(statusMessageStyle("添加了新任务: " + newTask.Title()))
+		m.currentView = taskListView
+		return m, tea.Batch(insertCmd, statusCmd)
+	case backMsg:
+		m.currentView = taskListView
+		m.taskInput = NewTaskInputModel() // Reset the form
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		// 处理窗口大小变化事件
 		h, v := appStyle.GetFrameSize()
@@ -229,14 +246,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 
 			case key.Matches(msg, m.keys.InsertItem):
-				// 添加新项目
-				m.taskManager.AddItem("新任务", "这是一个新任务")
-				// 在列表视图中插入新项
-				// 获取新任务，它应该是taskManager.Tasks中的最后一项
-				newTask := m.taskManager.Tasks[len(m.taskManager.Tasks)-1]
-				insertCmd := m.list.InsertItem(len(m.list.Items()), newTask)
-				statusCmd := m.list.NewStatusMessage(statusMessageStyle("添加了新任务: " + newTask.Title()))
-				return m, tea.Batch(insertCmd, statusCmd)
+				m.currentView = taskInputView
+				return m, nil
 
 			case key.Matches(msg, m.delegateKeys.Remove):
 				// 处理删除任务操作
@@ -248,7 +259,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if len(m.list.Items()) == 0 {
 						m.delegateKeys.Remove.SetEnabled(false)
 					}
-					return m, m.list.NewStatusMessage(statusMessageStyle("删除了任务: " + deletedTaskTitle))
+					statusCmd := m.list.NewStatusMessage(statusMessageStyle("删除了任务: " + deletedTaskTitle))
+					return m, statusCmd
 				}
 
 			case key.Matches(msg, m.keys.ChooseTask):
@@ -269,8 +281,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// 你的重置逻辑
 				return m, nil
 			}
+		case taskInputView:
+			var cmd tea.Cmd
+			m.taskInput, cmd = m.taskInput.Update(msg)
+			return m, cmd
 		}
-
 	}
 
 	// 更新列表模型（这会同时调用委托的update函数）
@@ -294,6 +309,8 @@ func (m model) View() string {
 				"（此处显示番茄钟计时界面，功能开发中...）\n\n" +
 				statusMessageStyle("按 q 返回任务列表"),
 		)
+	case taskInputView:
+		return m.taskInput.View()
 	default:
 		return "" // 未知视图状态，返回空字符串
 	}
