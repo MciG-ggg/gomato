@@ -9,8 +9,16 @@ import (
 // Task represents a single task in the task list.
 // It implements the list.Item interface.
 type Task struct {
-	Name   string `json:"title"`
-	Detail string `json:"description"`
+	Name   string    `json:"title"`
+	Detail string    `json:"description"`
+	Timer  TimeModel `json:"timer"`
+}
+
+// TimeModel 用于任务计时器（需导出字段以便持久化）
+type TimeModel struct {
+	TimerDuration  int  `json:"timerDuration"`
+	TimerRemaining int  `json:"timerRemaining"`
+	TimerIsRunning bool `json:"timerIsRunning"`
 }
 
 func (t Task) FilterValue() string { return t.Name }

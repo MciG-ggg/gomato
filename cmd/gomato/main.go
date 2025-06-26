@@ -1,69 +1,3 @@
-// 注释掉的原始命令行界面代码
-// package main
-
-// import (
-// 	"bufio"
-// 	"fmt"
-// 	"gomato/pkg/app"
-// 	"gomato/pkg/menu"
-// 	"gomato/pkg/setting"
-// 	"gomato/pkg/task"
-// 	"os"
-// 	"os/exec"
-// 	"runtime"
-// 	"strings"
-// )
-
-// // clearConsole 根据系统不同,清除终端屏幕
-// func clearConsole() {
-// 	var cmd *exec.Cmd
-
-// 	switch runtime.GOOS {
-// 	case "windows":
-// 		cmd = exec.Command("cmd", "/c", "cls")
-// 	case "linux", "darwin":
-// 		cmd = exec.Command("clear")
-// 	default:
-// 		fmt.Println("不支持的操作系统:", runtime.GOOS)
-// 		return
-// 	}
-
-// 	cmd.Stdout = os.Stdout
-// 	err := cmd.Run()
-// 	if err != nil {
-// 		fmt.Println("清屏失败:", err)
-// 	}
-// }
-
-// func main() {
-// 	// Load settings
-// 	err := setting.Load()
-// 	if err != nil {
-// 		fmt.Println("加载设置失败:", err)
-// 		return
-// 	}
-
-// 	// 创建应用实例
-// 	a := app.NewApp()
-// 	tm := task.NewTaskManager()
-// 	menu := menu.NewMenu(a, tm)
-
-// 	reader := bufio.NewReader(os.Stdin)
-
-// 	// 启动主菜单
-// 	for {
-// 		clearConsole()
-// 		menu.Display()
-
-// 		input, _ := reader.ReadString('\n')
-// 		choice := strings.TrimSpace(input)
-
-//			if !menu.HandleChoice(choice) {
-//				break
-//			}
-//		}
-//	}
-
 // TUI界面主程序 - 使用Bubble Tea框架构建现代化的终端用户界面
 package main
 
@@ -110,13 +44,17 @@ type viewState int
 // model 定义应用程序的数据模型 - Bubble Tea的核心数据结构
 type model struct {
 	// general
-	currentView viewState
-	taskManager *task.Manager
+	currentView      viewState
+	currentTaskIndex int // 新增：当前操作的任务索引
+	taskManager      *task.Manager
 
-	// views
+	// taskListView
 	list         list.Model             // 列表组件，显示任务列表
 	taskInput    taskInputModel         // 任务输入视图
 	delegateKeys *keymap.DelegateKeyMap // 列表项的委托按键映射
+
+	// timeView
+	timeModel task.TimeModel // 番茄钟视图模型（待实现）
 
 	// keys
 	keys         *keymap.ListKeyMap     // 列表操作的按键映射
@@ -144,6 +82,15 @@ func newModel() model {
 		taskManager.AddItem("欢迎使用Gomato!", "这是一个番茄钟应用，希望能帮助你提高效率。")
 	}
 
+	// 初始化每个任务的Timer
+	for i := range taskManager.Tasks {
+		taskManager.Tasks[i].Timer = task.TimeModel{
+			TimerDuration:  25 * 60,
+			TimerRemaining: 25 * 60,
+			TimerIsRunning: false,
+		}
+	}
+
 	// 将 task.Task 转换为 list.Item
 	items := make([]list.Item, len(taskManager.Tasks))
 	for i, t := range taskManager.Tasks {
@@ -152,10 +99,10 @@ func newModel() model {
 
 	// 设置列表组件
 	delegate := newItemDelegate(delegateKeys) // 创建项目委托（在taskList.go中定义）
-	groceryList := list.New(items, delegate, 0, 0)
-	groceryList.Title = "番茄钟任务列表"         // 设置列表标题
-	groceryList.Styles.Title = titleStyle // 应用标题样式
-	groceryList.AdditionalFullHelpKeys = func() []key.Binding {
+	taskList := list.New(items, delegate, 0, 0)
+	taskList.Title = "番茄钟任务列表"         // 设置列表标题
+	taskList.Styles.Title = titleStyle // 应用标题样式
+	taskList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			listKeys.ToggleSpinner,
 			listKeys.InsertItem,
@@ -166,14 +113,22 @@ func newModel() model {
 		}
 	}
 
+	taskTimeModel := task.TimeModel{
+		TimerDuration:  25 * 60,
+		TimerRemaining: 25 * 60,
+		TimerIsRunning: false,
+	}
+
 	return model{
-		currentView:  taskListView, // 设置初始视图为任务列表视图
-		list:         groceryList,
-		taskInput:    NewTaskInputModel(),
-		keys:         listKeys,
-		delegateKeys: delegateKeys,
-		timeViewKeys: timeViewKeys,
-		taskManager:  taskManager,
+		currentView:      taskListView, // 设置初始视图为任务列表视图
+		currentTaskIndex: 0,
+		list:             taskList,
+		taskInput:        NewTaskInputModel(),
+		keys:             listKeys,
+		delegateKeys:     delegateKeys,
+		timeViewKeys:     timeViewKeys,
+		taskManager:      taskManager,
+		timeModel:        taskTimeModel,
 	}
 }
 
@@ -191,6 +146,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case taskCreatedMsg:
 		m.taskManager.AddItem(msg.title, msg.description)
+		// 新增任务时初始化Timer
+		m.taskManager.Tasks[len(m.taskManager.Tasks)-1].Timer = task.TimeModel{
+			TimerDuration:  25 * 60,
+			TimerRemaining: 25 * 60,
+			TimerIsRunning: false,
+		}
 		newTask := m.taskManager.Tasks[len(m.taskManager.Tasks)-1]
 		insertCmd := m.list.InsertItem(len(m.list.Items()), newTask)
 		statusCmd := m.list.NewStatusMessage(statusMessageStyle("添加了新任务: " + newTask.Title()))
@@ -205,6 +166,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 处理窗口大小变化事件
 		h, v := appStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
+
+	case tickMsg:
+		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
+			m.timeModel.TimerRemaining-- // 每秒减少剩余时间
+			if m.timeModel.TimerRemaining == 0 {
+				m.timeModel.TimerIsRunning = false // 计时结束，停止计时器
+				// 保存状态
+				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+					m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+					m.taskManager.Save()
+				}
+				return m, m.list.NewStatusMessage(statusMessageStyle("计时结束！"))
+			}
+			// 更新状态栏显示剩余时间
+			statusMsg := fmt.Sprintf("剩余时间: %02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60)
+			statusCmd := m.list.NewStatusMessage(statusMessageStyle(statusMsg))
+			// 保存状态
+			if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+				m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+				m.taskManager.Save()
+			}
+			return m, tea.Batch(statusCmd, tick())
+		}
 
 	case tea.KeyMsg:
 		switch m.currentView {
@@ -265,6 +249,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case key.Matches(msg, m.keys.ChooseTask):
 				// 处理选择任务操作
+				m.currentTaskIndex = m.list.Index()
+				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+					m.timeModel = m.taskManager.Tasks[m.currentTaskIndex].Timer
+				}
 				m.currentView = timeView // 切换到时间视图
 				return m, m.list.NewStatusMessage(statusMessageStyle("任务已选择，请继续操作"))
 			}
@@ -272,13 +260,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 处理时间视图的按键消息
 			switch {
 			case key.Matches(msg, m.timeViewKeys.Back):
+				// 离开timeView时保存当前计时器到任务
+				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+					m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+					m.taskManager.Save()
+				}
 				m.currentView = taskListView
 				return m, nil
 			case key.Matches(msg, m.timeViewKeys.StartPause):
-				// 你的开始/暂停逻辑
+				m.timeModel.TimerIsRunning = !m.timeModel.TimerIsRunning
+				if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
+					return m, tick()
+				}
 				return m, nil
 			case key.Matches(msg, m.timeViewKeys.Reset):
-				// 你的重置逻辑
+				m.timeModel.TimerIsRunning = false
+				m.timeModel.TimerRemaining = 25 * 60 // 重置为25分钟
+				statusMsg := fmt.Sprintf("计时器已重置为: %02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60)
+				statusCmd := m.list.NewStatusMessage(statusMessageStyle(statusMsg))
+				cmds = append(cmds, statusCmd)
+				// 重置后保存
+				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+					m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+					m.taskManager.Save()
+				}
+				m.currentView = taskListView // 重置后返回任务列表视图
 				return m, nil
 			}
 		case taskInputView:
@@ -304,10 +310,22 @@ func (m model) View() string {
 		return appStyle.Render(m.list.View()) // 应用样式并返回渲染结果
 	case timeView:
 		// 时间视图渲染逻辑
+		// 格式化剩余时间
+		min := m.timeModel.TimerRemaining / 60
+		sec := m.timeModel.TimerRemaining % 60
+		remainStr := fmt.Sprintf("%02d:%02d", min, sec)
+		// 状态
+		status := "已暂停"
+		if m.timeModel.TimerIsRunning {
+			status = "运行中"
+		}
+		// 操作提示
+		controls := "[空格]开始/暂停  [r]重置  [q]返回"
 		return appStyle.Render(
 			titleStyle.Render("番茄钟计时器") + "\n\n" +
-				"（此处显示番茄钟计时界面，功能开发中...）\n\n" +
-				statusMessageStyle("按 q 返回任务列表"),
+				"剩余时间: " + remainStr + "\n" +
+				"状态: " + status + "\n\n" +
+				statusMessageStyle(controls),
 		)
 	case taskInputView:
 		return m.taskInput.View()

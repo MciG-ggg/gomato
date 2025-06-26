@@ -101,7 +101,7 @@ func NewTimeViewKeyMap() *TimeViewKeyMap {
 			key.WithHelp("q/esc", "返回任务列表"),
 		),
 		StartPause: key.NewBinding(
-			key.WithKeys("space"),
+			key.WithKeys(" "),
 			key.WithHelp("space", "开始/暂停"),
 		),
 		Reset: key.NewBinding(
