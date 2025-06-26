@@ -38,6 +38,7 @@ func handleTaskCreated(m *App, msg taskCreatedMsg) (tea.Model, tea.Cmd) {
 		TimerDuration:  25 * 60,
 		TimerRemaining: 25 * 60,
 		TimerIsRunning: false,
+		IsWorkSession:  true,
 	}
 	newTask := m.taskManager.Tasks[len(m.taskManager.Tasks)-1]
 	insertCmd := m.list.InsertItem(len(m.list.Items()), newTask)
@@ -84,6 +85,8 @@ func updateTaskListView(m *App, msg tea.Msg) tea.Cmd {
 		}
 		switch {
 		case key.Matches(keyMsg, m.keys.Setting):
+			common.LoadSettings()
+			m.settingModel.ReloadInputsFromSettings()
 			m.currentView = settingView
 			return nil
 		case key.Matches(keyMsg, m.keys.ToggleTitleBar):
@@ -122,7 +125,11 @@ func updateTaskListView(m *App, msg tea.Msg) tea.Cmd {
 				m.timeModel = m.taskManager.Tasks[m.currentTaskIndex].Timer
 			}
 			m.currentView = timeView
-			return m.list.NewStatusMessage(statusMessageStyle("任务已选择，请继续操作"))
+			m.timeModel.TimerIsRunning = true
+			return tea.Batch(
+				m.list.NewStatusMessage(statusMessageStyle("任务已选择，计时已开始！")),
+				tick(),
+			)
 		}
 	}
 

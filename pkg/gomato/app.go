@@ -19,16 +19,17 @@ const (
 type viewState int
 
 type App struct {
-	currentView      viewState
-	currentTaskIndex int
-	taskManager      *task.Manager
-	list             list.Model
-	keys             *keymap.ListKeyMap
-	delegateKeys     *keymap.DelegateKeyMap
-	timeViewKeys     *keymap.TimeViewKeyMap
-	timeModel        task.TimeModel
-	settingModel     SettingModel
-	taskInput        TaskInputModel
+	currentView       viewState
+	currentTaskIndex  int
+	taskManager       *task.Manager
+	list              list.Model
+	keys              *keymap.ListKeyMap
+	delegateKeys      *keymap.DelegateKeyMap
+	timeViewKeys      *keymap.TimeViewKeyMap
+	timeModel         task.TimeModel
+	settingModel      SettingModel
+	taskInput         TaskInputModel
+	CurrentCycleCount int
 }
 
 func NewApp() *App {
@@ -51,19 +52,21 @@ func NewApp() *App {
 	taskTimeModel := task.TimeModel{
 		TimerDuration:  int(settingModel.Settings.Pomodoro) * 60,
 		TimerRemaining: int(settingModel.Settings.Pomodoro) * 60,
-		TimerIsRunning: false,
+		TimerIsRunning: true,
+		IsWorkSession:  true,
 	}
 	return &App{
-		currentView:      taskListView,
-		currentTaskIndex: 0,
-		list:             taskList,
-		taskInput:        NewTaskInputModel(),
-		keys:             listKeys,
-		delegateKeys:     delegateKeys,
-		timeViewKeys:     timeViewKeys,
-		taskManager:      taskManager,
-		timeModel:        taskTimeModel,
-		settingModel:     settingModel,
+		currentView:       taskListView,
+		currentTaskIndex:  0,
+		list:              taskList,
+		taskInput:         NewTaskInputModel(),
+		keys:              listKeys,
+		delegateKeys:      delegateKeys,
+		timeViewKeys:      timeViewKeys,
+		taskManager:       taskManager,
+		timeModel:         taskTimeModel,
+		settingModel:      settingModel,
+		CurrentCycleCount: 0,
 	}
 }
 

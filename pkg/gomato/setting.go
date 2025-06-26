@@ -20,6 +20,7 @@ const (
 	pomodoro   = 0
 	shortBreak = 1
 	longBreak  = 2
+	cycle      = 3
 )
 
 var (
@@ -46,14 +47,13 @@ func NewSettingModel() SettingModel {
 	tabs := []string{"Timer", "Appearance", "Notifications"}
 
 	settings, err := common.LoadSettings()
-	// TODO: handle error properly
 	if err != nil {
 		fmt.Println("could not load settings:", err)
 	}
 
 	m := SettingModel{
 		Tabs:     tabs,
-		inputs:   make([]textinput.Model, 3),
+		inputs:   make([]textinput.Model, 4),
 		Settings: settings,
 	}
 
@@ -88,6 +88,10 @@ func NewSettingModel() SettingModel {
 			t.SetValue(fmt.Sprintf("%d", m.Settings.LongBreak))
 			t.Placeholder = "15"
 			t.Prompt = "Long Break: "
+		case cycle:
+			t.SetValue(fmt.Sprintf("%d", m.Settings.Cycle))
+			t.Placeholder = "4"
+			t.Prompt = "Cycle (每周期工作/短休息次数): "
 		}
 
 		m.inputs[i] = t
@@ -122,10 +126,15 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 			if err != nil {
 				lb = int(m.Settings.LongBreak) // fallback to existing
 			}
+			cy, err := strconv.Atoi(m.inputs[cycle].Value())
+			if err != nil {
+				cy = int(m.Settings.Cycle)
+			}
 
 			m.Settings.Pomodoro = uint(p)
 			m.Settings.ShortBreak = uint(sb)
 			m.Settings.LongBreak = uint(lb)
+			m.Settings.Cycle = uint(cy)
 			m.Settings.Save()
 
 			return m, func() tea.Msg { return backMsg{} }
@@ -284,4 +293,23 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (m *SettingModel) ReloadInputsFromSettings() {
+	settings, err := common.LoadSettings()
+	if err == nil {
+		m.Settings = settings
+	}
+	for i := range m.inputs {
+		switch i {
+		case pomodoro:
+			m.inputs[i].SetValue(fmt.Sprintf("%d", m.Settings.Pomodoro))
+		case shortBreak:
+			m.inputs[i].SetValue(fmt.Sprintf("%d", m.Settings.ShortBreak))
+		case longBreak:
+			m.inputs[i].SetValue(fmt.Sprintf("%d", m.Settings.LongBreak))
+		case cycle:
+			m.inputs[i].SetValue(fmt.Sprintf("%d", m.Settings.Cycle))
+		}
+	}
 }

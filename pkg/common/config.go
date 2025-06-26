@@ -10,12 +10,14 @@ type Settings struct {
 	Pomodoro   uint `json:"pomodoro"`
 	ShortBreak uint `json:"shortBreak"`
 	LongBreak  uint `json:"longBreak"`
+	Cycle      uint `json:"cycle"`
 }
 
 var defaultSettings = Settings{
 	Pomodoro:   25,
 	ShortBreak: 5,
 	LongBreak:  15,
+	Cycle:      4,
 }
 
 func getSettingsPath() (string, error) {

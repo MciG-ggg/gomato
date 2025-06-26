@@ -3,6 +3,7 @@ package gomato
 import (
 	"fmt"
 	"gomato/pkg/common"
+	"gomato/pkg/logging"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -24,13 +25,56 @@ func tick() tea.Cmd {
 func handleTick(m *App) tea.Cmd {
 	if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
 		m.timeModel.TimerRemaining--
+		logging.Log(fmt.Sprintf("[Tick] Timer ticked, remaining: %d", m.timeModel.TimerRemaining))
 		if m.timeModel.TimerRemaining == 0 {
-			m.timeModel.TimerIsRunning = false
-			if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
-				m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
-				m.taskManager.Save()
+			if m.timeModel.IsWorkSession {
+				// 工作结束，cycle计数+1
+				m.CurrentCycleCount++
+				logging.Log(fmt.Sprintf("[Cycle] 完成一次工作，当前cycle计数: %d/%d", m.CurrentCycleCount, m.settingModel.Settings.Cycle))
+				if m.CurrentCycleCount < int(m.settingModel.Settings.Cycle) {
+					// 进入短休息
+					m.timeModel.IsWorkSession = false
+					m.timeModel.TimerRemaining = int(m.settingModel.Settings.ShortBreak) * 60
+					statusMsg := fmt.Sprintf("工作结束，开始休息！\n现在是休息时间！(第%d/%d次)", m.CurrentCycleCount, m.settingModel.Settings.Cycle)
+					if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+						m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+						m.taskManager.Save()
+					}
+					return tea.Batch(
+						m.list.NewStatusMessage(statusMessageStyle(statusMsg)),
+						tick(),
+					)
+				} else {
+					// 达到cycle，进入长休息
+					logging.Log("[Cycle] 达到cycle上限，进入长休息，重置cycle计数")
+					m.CurrentCycleCount = 0
+					m.timeModel.IsWorkSession = false
+					m.timeModel.TimerRemaining = int(m.settingModel.Settings.LongBreak) * 60
+					statusMsg := "本周期已完成，进入长休息！"
+					if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+						m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+						m.taskManager.Save()
+					}
+					return tea.Batch(
+						m.list.NewStatusMessage(statusMessageStyle(statusMsg)),
+						tick(),
+					)
+				}
+			} else {
+				// 休息结束，回到工作
+				m.timeModel.IsWorkSession = true
+				m.timeModel.TimerIsRunning = true // 自动开始新一轮
+				m.timeModel.TimerRemaining = int(m.settingModel.Settings.Pomodoro) * 60
+				logging.Log(fmt.Sprintf("[Cycle] 休息结束，开始新一轮工作。当前cycle计数: %d/%d", m.CurrentCycleCount, m.settingModel.Settings.Cycle))
+				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
+					m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
+					m.taskManager.Save()
+				}
+				return tea.Batch(
+					m.list.NewStatusMessage(statusMessageStyle("休息结束，开始新一轮工作！")),
+					tick(),
+				)
 			}
-			return m.list.NewStatusMessage(statusMessageStyle("计时结束！"))
 		}
 		statusMsg := fmt.Sprintf("剩余时间: %02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60)
 		statusCmd := m.list.NewStatusMessage(statusMessageStyle(statusMsg))
@@ -65,12 +109,12 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		return nil
 	case key.Matches(keyMsg, m.timeViewKeys.Reset):
 		m.timeModel.TimerIsRunning = false
+		m.timeModel.IsWorkSession = true
 		m.timeModel.TimerRemaining = int(m.settingModel.Settings.Pomodoro) * 60
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
 		}
-		m.currentView = taskListView
 		return nil
 	}
 	return nil
