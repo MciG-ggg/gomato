@@ -1,4 +1,4 @@
-package main
+package gomato
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type taskInputModel struct {
+type TaskInputModel struct {
 	inputs       []textinput.Model
 	focused      int
 	err          error
@@ -23,7 +23,7 @@ type taskCreatedMsg struct {
 
 type backMsg struct{}
 
-func NewTaskInputModel() taskInputModel {
+func NewTaskInputModel() TaskInputModel {
 	var inputs = make([]textinput.Model, 2)
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Title"
@@ -36,7 +36,7 @@ func NewTaskInputModel() taskInputModel {
 	inputs[1].CharLimit = 156
 	inputs[1].Width = 50
 
-	return taskInputModel{
+	return TaskInputModel{
 		inputs:       inputs,
 		focused:      0,
 		err:          nil,
@@ -44,11 +44,11 @@ func NewTaskInputModel() taskInputModel {
 	}
 }
 
-func (m taskInputModel) Init() tea.Cmd {
+func (m TaskInputModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m taskInputModel) Update(msg tea.Msg) (taskInputModel, tea.Cmd) {
+func (m TaskInputModel) Update(msg tea.Msg) (TaskInputModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -56,7 +56,7 @@ func (m taskInputModel) Update(msg tea.Msg) (taskInputModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			if m.focused == len(m.inputs) { // On "Create" button
+			if m.focused == len(m.inputs) {
 				return m, func() tea.Msg {
 					return taskCreatedMsg{
 						title:       m.inputs[0].Value(),
@@ -82,10 +82,9 @@ func (m taskInputModel) Update(msg tea.Msg) (taskInputModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *taskInputModel) nextInput() {
-	m.focused = (m.focused + 1) % (len(m.inputs) + 1) // +1 for the button
+func (m *TaskInputModel) nextInput() {
+	m.focused = (m.focused + 1) % (len(m.inputs) + 1)
 	if m.focused == len(m.inputs) {
-		// Focused on button
 		m.inputs[0].Blur()
 		m.inputs[1].Blur()
 		return
@@ -101,14 +100,13 @@ func (m *taskInputModel) nextInput() {
 	}
 }
 
-func (m *taskInputModel) prevInput() {
+func (m *TaskInputModel) prevInput() {
 	m.focused--
 	if m.focused < 0 {
 		m.focused = len(m.inputs)
 	}
 
 	if m.focused == len(m.inputs) {
-		// Focused on button
 		m.inputs[0].Blur()
 		m.inputs[1].Blur()
 		return
@@ -125,7 +123,7 @@ func (m *taskInputModel) prevInput() {
 	}
 }
 
-func (m taskInputModel) View() string {
+func (m TaskInputModel) View() string {
 	var b strings.Builder
 
 	b.WriteString("Create a new task\n\n")

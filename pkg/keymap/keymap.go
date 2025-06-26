@@ -6,7 +6,7 @@ import "github.com/charmbracelet/bubbles/key"
 // ListKeyMap 用于任务列表视图
 // 字段名首字母大写以便外部包访问
 type ListKeyMap struct {
-	ToggleSpinner    key.Binding
+	Setting          key.Binding
 	ToggleTitleBar   key.Binding
 	ToggleStatusBar  key.Binding
 	TogglePagination key.Binding
@@ -21,9 +21,9 @@ func NewListKeyMap() *ListKeyMap {
 			key.WithKeys("a"),
 			key.WithHelp("a", "add item"),
 		),
-		ToggleSpinner: key.NewBinding(
+		Setting: key.NewBinding(
 			key.WithKeys("s"),
-			key.WithHelp("s", "toggle spinner"),
+			key.WithHelp("s", "setting"),
 		),
 		ToggleTitleBar: key.NewBinding(
 			key.WithKeys("T"),

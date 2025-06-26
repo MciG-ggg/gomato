@@ -1,4 +1,4 @@
-package main
+package gomato
 
 import (
 	"time"
