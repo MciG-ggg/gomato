@@ -5,200 +5,127 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
+
+	"gomato/pkg/common"
 )
 
+// Task represents a single task in the task list.
+// It implements the list.Item interface.
 type Task struct {
-	ID           int           `json:"id"`
-	Description  string        `json:"description"`
-	StartTime    time.Time     `json:"start_time"`
-	EndTime      time.Time     `json:"end_time"`
-	Completed    bool          `json:"completed"`
-	UsedDuration time.Duration `json:"used_duration"`
+	Name   string    `json:"title"`
+	Detail string    `json:"description"`
+	Timer  TimeModel `json:"timer"`
 }
 
-type TaskManager struct {
-	tasks []*Task
+// TimeModel 用于任务计时器（需导出字段以便持久化）
+type TimeModel struct {
+	TimerDuration  int  `json:"timerDuration"`
+	TimerRemaining int  `json:"timerRemaining"`
+	TimerIsRunning bool `json:"timerIsRunning"`
+	IsWorkSession  bool `json:"isWorkSession"`
 }
 
-func NewTaskManager() *TaskManager {
-	tm := &TaskManager{
-		tasks: make([]*Task, 0),
-	}
-	tm.Load() // 加载保存的任务
-	return tm
+func (t Task) FilterValue() string { return t.Name }
+func (t Task) Title() string       { return t.Name }
+func (t Task) Description() string { return t.Detail }
+
+// Manager handles task loading, saving, and manipulation.
+type Manager struct {
+	Tasks    []Task
+	filePath string
 }
 
-func (tm *TaskManager) AddTask(description string) *Task {
-	task := &Task{
-		ID:          len(tm.tasks) + 1,
-		Description: description,
-		StartTime:   time.Now(),
-		Completed:   false,
-	}
-	tm.tasks = append(tm.tasks, task)
-	tm.Save() // 保存任务
-	return task
-}
-
-func (tm *TaskManager) CompleteTask(id int) error {
-	for _, task := range tm.tasks {
-		if task.ID == id {
-			task.Completed = true
-			task.EndTime = time.Now()
-			tm.Save() // 保存任务
-			return nil
-		}
-	}
-	return fmt.Errorf("任务 %d 不存在", id)
-}
-
-func (tm *TaskManager) ListTasks() []*Task {
-	return tm.tasks
-}
-
-func (tm *TaskManager) GetTaskStats() (int, int) {
-	total := len(tm.tasks)
-	completed := 0
-	for _, task := range tm.tasks {
-		if task.Completed {
-			completed++
-		}
-	}
-	return total, completed
-}
-
-// GetRecentTasks 返回最近添加的n个任务
-func (tm *TaskManager) GetRecentTasks(n int) []*Task {
-	if n <= 0 || n > len(tm.tasks) {
-		n = len(tm.tasks)
-	}
-
-	// 创建一个新的切片来存储最近的任务
-	recentTasks := make([]*Task, n)
-	copy(recentTasks, tm.tasks[len(tm.tasks)-n:])
-	return recentTasks
-}
-
-// GetIncompleteTasks 返回所有未完成的任务
-func (tm *TaskManager) GetIncompleteTasks() []*Task {
-	var incompleteTasks []*Task
-	for _, task := range tm.tasks {
-		if !task.Completed {
-			incompleteTasks = append(incompleteTasks, task)
-		}
-	}
-	return incompleteTasks
-}
-
-// GetTaskByID 根据ID获取任务
-func (tm *TaskManager) GetTaskByID(id int) (*Task, error) {
-	for _, task := range tm.tasks {
-		if task.ID == id {
-			return task, nil
-		}
-	}
-	return nil, fmt.Errorf("任务 %d 不存在", id)
-}
-
-func (tm *TaskManager) GetTaskByName(name string) (*Task, error) {
-	for _, task := range tm.tasks {
-		if task.Description == name {
-			return task, nil
-		}
-	}
-	return nil, fmt.Errorf("任务 %s 不存在", name)
-}
-
-func (tm *TaskManager) Save() error {
-	// 获取用户主目录
-	homeDir, err := os.UserHomeDir()
+// NewManager creates a new task manager and loads tasks from the default path.
+func NewManager() (*Manager, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("获取用户主目录失败：%v", err)
+		return nil, err
+	}
+	configDir := filepath.Join(home, ".gomato")
+	filePath := filepath.Join(configDir, "tasks.json")
+
+	m := &Manager{
+		filePath: filePath,
 	}
 
-	// 在用户主目录下创建 .gomato 目录
-	dataDir := filepath.Join(homeDir, ".gomato")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return fmt.Errorf("创建数据目录失败：%v", err)
-	}
-
-	// 将任务数据转换为JSON
-	data, err := json.MarshalIndent(tm.tasks, "", "  ")
-	if err != nil {
-		return fmt.Errorf("转换任务数据失败：%v", err)
-	}
-
-	// 写入文件
-	taskFile := filepath.Join(dataDir, "tasks.json")
-	if err := os.WriteFile(taskFile, data, 0644); err != nil {
-		return fmt.Errorf("写入任务文件失败：%v", err)
-	}
-
-	return nil
-}
-
-func (tm *TaskManager) Load() error {
-	// 获取用户主目录
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("获取用户主目录失败：%v", err)
-	}
-
-	taskFile := filepath.Join(homeDir, ".gomato", "tasks.json")
-
-	// 检查文件是否存在
-	if _, err := os.Stat(taskFile); os.IsNotExist(err) {
-		return nil // 如果文件不存在，返回空任务列表
-	}
-
-	// 读取文件
-	data, err := os.ReadFile(taskFile)
-	if err != nil {
-		return fmt.Errorf("读取任务文件失败：%v", err)
-	}
-
-	// 解析JSON
-	if err := json.Unmarshal(data, &tm.tasks); err != nil {
-		return fmt.Errorf("解析任务数据失败：%v", err)
-	}
-
-	return nil
-}
-
-// DeleteTask 删除指定ID的任务
-func (tm *TaskManager) DeleteTask(id int) error {
-	for i, task := range tm.tasks {
-		if task.ID == id {
-			// 删除任务
-			tm.tasks = append(tm.tasks[:i], tm.tasks[i+1:]...)
-
-			// 重新编号剩余任务
-			for j := i; j < len(tm.tasks); j++ {
-				tm.tasks[j].ID = j + 1
-			}
-
-			// 保存更改
-			if err := tm.Save(); err != nil {
-				return fmt.Errorf("保存任务失败：%v", err)
-			}
-			return nil
+	if err := m.Load(); err != nil {
+		// If file doesn't exist, it's fine, we'll create it on save.
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
 	}
-	return fmt.Errorf("任务 %d 不存在", id)
+
+	return m, nil
 }
 
-// DeleteAllTasks 删除所有任务
-func (tm *TaskManager) DeleteAllTasks() {
-	tm.tasks = make([]*Task, 0)
-
-	// 获取用户主目录
-	homeDir, err := os.UserHomeDir()
+// Load reads tasks from the JSON file.
+func (m *Manager) Load() error {
+	data, err := os.ReadFile(m.filePath)
 	if err != nil {
-		return
+		return err
+	}
+	return json.Unmarshal(data, &m.Tasks)
+}
+
+// Save writes the current tasks to the JSON file.
+func (m *Manager) Save() error {
+	// Ensure the directory exists.
+	dir := filepath.Dir(m.filePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 	}
 
-	// 删除任务文件
-	taskFile := filepath.Join(homeDir, ".gomato", "tasks.json")
-	os.Remove(taskFile)
+	data, err := json.MarshalIndent(m.Tasks, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(m.filePath, data, 0644)
+}
+
+// AddItem adds a new task to the list and saves it.
+func (m *Manager) AddItem(title, description string) {
+	m.Tasks = append(m.Tasks, Task{Name: title, Detail: description})
+	m.Save() // Consider handling this error
+}
+
+// DeleteItem deletes a task from the list and saves the changes.
+func (m *Manager) DeleteItem(index int) {
+	if index < 0 || index >= len(m.Tasks) {
+		return // Or return an error
+	}
+	m.Tasks = append(m.Tasks[:index], m.Tasks[index+1:]...)
+	m.Save() // Consider handling this error
+}
+
+func (t TimeModel) View() string {
+	min := t.TimerRemaining / 60
+	sec := t.TimerRemaining % 60
+	remainStr := fmt.Sprintf("%02d:%02d", min, sec)
+	status := "已暂停"
+	if t.TimerIsRunning {
+		status = "运行中"
+	}
+	controls := "[空格]开始/暂停  [r]重置  [q]返回"
+	if t.IsWorkSession {
+		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
+			"剩余时间: " + remainStr + "\n" +
+			"状态: " + status + "\n\n" +
+			common.StatusMessageStyle(controls) + "\n\n" +
+			"当前是工作时间，请专注！"
+	} else if !t.IsWorkSession && t.TimerIsRunning {
+		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
+			"剩余时间: " + remainStr + "\n" +
+			"状态: " + status + "\n\n" +
+			common.StatusMessageStyle(controls) + "\n\n" +
+			"当前是休息时间，请放松！"
+	} else {
+		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
+			"剩余时间: " + remainStr + "\n" +
+			"状态: " + status + "\n\n" +
+			common.StatusMessageStyle(controls) + "\n\n" +
+			"当前是休息时间，请放松！\n\n" +
+			"按 [空格] 开始计时，或按 [r] 重置计时器。"
+	}
 }
