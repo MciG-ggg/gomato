@@ -65,7 +65,7 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		return nil
 	case key.Matches(keyMsg, m.timeViewKeys.Reset):
 		m.timeModel.TimerIsRunning = false
-		m.timeModel.TimerRemaining = 25 * 60
+		m.timeModel.TimerRemaining = int(m.settingModel.Settings.Pomodoro) * 60
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()

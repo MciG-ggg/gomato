@@ -148,6 +148,27 @@ func (m TaskInputModel) View() string {
 }
 
 func handleBack(m *App) (tea.Model, tea.Cmd) {
+	if m.currentView == settingView {
+		// Apply new settings to all timers when returning from settings
+		newDuration := int(m.settingModel.Settings.Pomodoro) * 60
+
+		// Update the main/active timer model
+		m.timeModel.TimerDuration = newDuration
+		if m.timeModel.TimerRemaining > newDuration || !m.timeModel.TimerIsRunning {
+			m.timeModel.TimerRemaining = newDuration
+		}
+
+		// Update the timer for all individual tasks
+		for i := range m.taskManager.Tasks {
+			taskTimer := &m.taskManager.Tasks[i].Timer
+			taskTimer.TimerDuration = newDuration
+			if taskTimer.TimerRemaining > newDuration || !taskTimer.TimerIsRunning {
+				taskTimer.TimerRemaining = newDuration
+			}
+		}
+		// Persist the changes to the tasks file
+		m.taskManager.Save()
+	}
 	m.currentView = taskListView
 	m.taskInput = NewTaskInputModel()
 	return m, nil

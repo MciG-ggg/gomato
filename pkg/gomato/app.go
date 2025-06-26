@@ -39,17 +39,18 @@ func NewApp() *App {
 	if len(taskManager.Tasks) == 0 {
 		taskManager.AddItem("欢迎使用Gomato!", "这是一个番茄钟应用，希望能帮助你提高效率。")
 	}
+	settingModel := NewSettingModel()
 	for i := range taskManager.Tasks {
 		taskManager.Tasks[i].Timer = task.TimeModel{
-			TimerDuration:  25 * 60,
-			TimerRemaining: 25 * 60,
+			TimerDuration:  int(settingModel.Settings.Pomodoro) * 60,
+			TimerRemaining: int(settingModel.Settings.Pomodoro) * 60,
 			TimerIsRunning: false,
 		}
 	}
 	taskList := NewTaskList(listKeys, delegateKeys, taskManager)
 	taskTimeModel := task.TimeModel{
-		TimerDuration:  25 * 60,
-		TimerRemaining: 25 * 60,
+		TimerDuration:  int(settingModel.Settings.Pomodoro) * 60,
+		TimerRemaining: int(settingModel.Settings.Pomodoro) * 60,
 		TimerIsRunning: false,
 	}
 	return &App{
@@ -62,7 +63,7 @@ func NewApp() *App {
 		timeViewKeys:     timeViewKeys,
 		taskManager:      taskManager,
 		timeModel:        taskTimeModel,
-		settingModel:     NewSettingModel(),
+		settingModel:     settingModel,
 	}
 }
 
