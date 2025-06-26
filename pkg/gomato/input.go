@@ -146,3 +146,9 @@ func (m TaskInputModel) View() string {
 
 	return b.String()
 }
+
+func handleBack(m *App) (tea.Model, tea.Cmd) {
+	m.currentView = taskListView
+	m.taskInput = NewTaskInputModel()
+	return m, nil
+}

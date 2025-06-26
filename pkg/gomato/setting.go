@@ -27,8 +27,10 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q", "esc":
+			return m, func() tea.Msg { return backMsg{} }
 		case "right", "l", "n", "tab":
 			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
 			return m, nil

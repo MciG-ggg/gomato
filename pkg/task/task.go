@@ -2,8 +2,11 @@ package task
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"gomato/pkg/common"
 )
 
 // Task represents a single task in the task list.
@@ -93,4 +96,19 @@ func (m *Manager) DeleteItem(index int) {
 	}
 	m.Tasks = append(m.Tasks[:index], m.Tasks[index+1:]...)
 	m.Save() // Consider handling this error
+}
+
+func (t TimeModel) View() string {
+	min := t.TimerRemaining / 60
+	sec := t.TimerRemaining % 60
+	remainStr := fmt.Sprintf("%02d:%02d", min, sec)
+	status := "已暂停"
+	if t.TimerIsRunning {
+		status = "运行中"
+	}
+	controls := "[空格]开始/暂停  [r]重置  [q]返回"
+	return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
+		"剩余时间: " + remainStr + "\n" +
+		"状态: " + status + "\n\n" +
+		common.StatusMessageStyle(controls)
 }
