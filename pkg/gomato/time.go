@@ -76,13 +76,24 @@ func handleTick(m *App) tea.Cmd {
 				)
 			}
 		}
-		statusMsg := fmt.Sprintf("剩余时间: %02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60)
+		// 根据设置选择时间显示方式
+		var timeDisplay string
+		if m.settingModel.Settings.TimeDisplayMode == "normal" {
+			timeDisplay = fmt.Sprintf("%02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60)
+		} else {
+			timeDisplay = common.TimeToAnsiArt(fmt.Sprintf("%02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60))
+		}
+		statusMsg := fmt.Sprintf("剩余时间: %s", timeDisplay)
 		statusCmd := m.list.NewStatusMessage(statusMessageStyle(statusMsg))
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
 		}
-		return tea.Batch(statusCmd, tick())
+		// 只有在计时器仍在运行时才返回tick命令
+		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
+			return tea.Batch(statusCmd, tick())
+		}
+		return statusCmd
 	}
 	return nil
 }

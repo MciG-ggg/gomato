@@ -7,17 +7,19 @@ import (
 )
 
 type Settings struct {
-	Pomodoro   uint `json:"pomodoro"`
-	ShortBreak uint `json:"shortBreak"`
-	LongBreak  uint `json:"longBreak"`
-	Cycle      uint `json:"cycle"`
+	Pomodoro        uint   `json:"pomodoro"`
+	ShortBreak      uint   `json:"shortBreak"`
+	LongBreak       uint   `json:"longBreak"`
+	Cycle           uint   `json:"cycle"`
+	TimeDisplayMode string `json:"timeDisplayMode"` // "normal" 或 "ansi"
 }
 
 var defaultSettings = Settings{
-	Pomodoro:   25,
-	ShortBreak: 5,
-	LongBreak:  15,
-	Cycle:      4,
+	Pomodoro:        25,
+	ShortBreak:      5,
+	LongBreak:       15,
+	Cycle:           4,
+	TimeDisplayMode: "ansi", // 默认使用ANSI艺术显示
 }
 
 func getSettingsPath() (string, error) {

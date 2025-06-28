@@ -17,10 +17,11 @@ type (
 )
 
 const (
-	pomodoro   = 0
-	shortBreak = 1
-	longBreak  = 2
-	cycle      = 3
+	pomodoro    = 0
+	shortBreak  = 1
+	longBreak   = 2
+	cycle       = 3
+	timeDisplay = 4
 )
 
 var (
@@ -35,12 +36,14 @@ var (
 )
 
 type SettingModel struct {
-	Tabs       []string
-	ActiveTab  int
-	focusIndex int
-	inputs     []textinput.Model
-	cursorMode cursor.Mode
-	Settings   common.Settings
+	Tabs               []string
+	ActiveTab          int
+	focusIndex         int
+	inputs             []textinput.Model
+	cursorMode         cursor.Mode
+	Settings           common.Settings
+	timeDisplayOptions []string
+	timeDisplayIndex   int
 }
 
 func NewSettingModel() SettingModel {
@@ -52,9 +55,17 @@ func NewSettingModel() SettingModel {
 	}
 
 	m := SettingModel{
-		Tabs:     tabs,
-		inputs:   make([]textinput.Model, 4),
-		Settings: settings,
+		Tabs:               tabs,
+		inputs:             make([]textinput.Model, 4),
+		Settings:           settings,
+		timeDisplayOptions: []string{"ANSI艺术显示", "普通数字显示"},
+	}
+
+	// 设置时间显示方式的初始索引
+	if m.Settings.TimeDisplayMode == "normal" {
+		m.timeDisplayIndex = 1
+	} else {
+		m.timeDisplayIndex = 0 // 默认ANSI
 	}
 
 	var t textinput.Model
@@ -135,6 +146,14 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 			m.Settings.ShortBreak = uint(sb)
 			m.Settings.LongBreak = uint(lb)
 			m.Settings.Cycle = uint(cy)
+
+			// 保存时间显示方式
+			if m.timeDisplayIndex == 1 {
+				m.Settings.TimeDisplayMode = "normal"
+			} else {
+				m.Settings.TimeDisplayMode = "ansi"
+			}
+
 			m.Settings.Save()
 
 			return m, func() tea.Msg { return backMsg{} }
@@ -161,10 +180,12 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 				m.focusIndex++
 			}
 
-			if m.focusIndex > len(m.inputs) {
+			// 更新焦点范围，包含时间显示方式选择器
+			maxFocusIndex := len(m.inputs) + 1 // +1 for time display selector
+			if m.focusIndex > maxFocusIndex {
 				m.focusIndex = 0
 			} else if m.focusIndex < 0 {
-				m.focusIndex = len(m.inputs)
+				m.focusIndex = maxFocusIndex
 			}
 
 			cmds := make([]tea.Cmd, len(m.inputs))
@@ -182,10 +203,28 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 
 			return m, tea.Batch(cmds...)
 		case "right", "l":
-			m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
+			if m.focusIndex == timeDisplay {
+				m.timeDisplayIndex = min(len(m.timeDisplayOptions)-1, m.timeDisplayIndex+1)
+			} else {
+				m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
+			}
 			return m, nil
 		case "left", "h":
-			m.ActiveTab = max(m.ActiveTab-1, 0)
+			if m.focusIndex == timeDisplay {
+				m.timeDisplayIndex = max(0, m.timeDisplayIndex-1)
+			} else {
+				m.ActiveTab = max(m.ActiveTab-1, 0)
+			}
+			return m, nil
+		// 时间显示方式选择
+		case "1", "2":
+			if m.focusIndex == timeDisplay {
+				if msg.String() == "1" {
+					m.timeDisplayIndex = 0
+				} else if msg.String() == "2" {
+					m.timeDisplayIndex = 1
+				}
+			}
 			return m, nil
 		}
 	}
@@ -265,8 +304,38 @@ func (m SettingModel) View() string {
 			}
 		}
 
+		// 添加时间显示方式选择器
+		b.WriteRune('\n')
+		timeDisplayPrompt := "时间显示方式: "
+		if m.focusIndex == timeDisplay {
+			timeDisplayPrompt = focusedStyle.Render(timeDisplayPrompt)
+		}
+		b.WriteString(timeDisplayPrompt)
+		b.WriteRune('\n')
+
+		for i, option := range m.timeDisplayOptions {
+			prefix := "  "
+			if i == m.timeDisplayIndex {
+				prefix = "> "
+			}
+			if m.focusIndex == timeDisplay {
+				if i == m.timeDisplayIndex {
+					b.WriteString(focusedStyle.Render(prefix + option))
+				} else {
+					b.WriteString(prefix + option)
+				}
+			} else {
+				if i == m.timeDisplayIndex {
+					b.WriteString(focusedStyle.Render(prefix + option))
+				} else {
+					b.WriteString(prefix + option)
+				}
+			}
+			b.WriteRune('\n')
+		}
+
 		button := &blurredButton
-		if m.focusIndex == len(m.inputs) {
+		if m.focusIndex == len(m.inputs)+1 {
 			button = &focusedButton
 		}
 		fmt.Fprintf(&b, "\n\n%s\n\n", *button)
@@ -311,5 +380,12 @@ func (m *SettingModel) ReloadInputsFromSettings() {
 		case cycle:
 			m.inputs[i].SetValue(fmt.Sprintf("%d", m.Settings.Cycle))
 		}
+	}
+
+	// 重新加载时间显示方式设置
+	if m.Settings.TimeDisplayMode == "normal" {
+		m.timeDisplayIndex = 1
+	} else {
+		m.timeDisplayIndex = 0 // 默认ANSI
 	}
 }

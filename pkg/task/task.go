@@ -100,9 +100,22 @@ func (m *Manager) DeleteItem(index int) {
 }
 
 func (t TimeModel) View() string {
+	return t.ViewWithSettings(nil)
+}
+
+func (t TimeModel) ViewWithSettings(settings *common.Settings) string {
 	min := t.TimerRemaining / 60
 	sec := t.TimerRemaining % 60
 	remainStr := fmt.Sprintf("%02d:%02d", min, sec)
+
+	// 根据设置选择时间显示方式
+	var timeDisplay string
+	if settings != nil && settings.TimeDisplayMode == "normal" {
+		timeDisplay = remainStr
+	} else {
+		timeDisplay = common.TimeToAnsiArt(remainStr)
+	}
+
 	status := "已暂停"
 	if t.TimerIsRunning {
 		status = "运行中"
@@ -110,19 +123,19 @@ func (t TimeModel) View() string {
 	controls := "[空格]开始/暂停  [r]重置  [q]返回"
 	if t.IsWorkSession {
 		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
-			"剩余时间: " + remainStr + "\n" +
+			timeDisplay + "\n\n" +
 			"状态: " + status + "\n\n" +
 			common.StatusMessageStyle(controls) + "\n\n" +
 			"当前是工作时间，请专注！"
 	} else if !t.IsWorkSession && t.TimerIsRunning {
 		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
-			"剩余时间: " + remainStr + "\n" +
+			timeDisplay + "\n\n" +
 			"状态: " + status + "\n\n" +
 			common.StatusMessageStyle(controls) + "\n\n" +
 			"当前是休息时间，请放松！"
 	} else {
 		return common.TitleStyle.Render("番茄钟计时器") + "\n\n" +
-			"剩余时间: " + remainStr + "\n" +
+			timeDisplay + "\n\n" +
 			"状态: " + status + "\n\n" +
 			common.StatusMessageStyle(controls) + "\n\n" +
 			"当前是休息时间，请放松！\n\n" +

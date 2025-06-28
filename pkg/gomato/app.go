@@ -52,7 +52,7 @@ func NewApp() *App {
 	taskTimeModel := task.TimeModel{
 		TimerDuration:  int(settingModel.Settings.Pomodoro) * 60,
 		TimerRemaining: int(settingModel.Settings.Pomodoro) * 60,
-		TimerIsRunning: true,
+		TimerIsRunning: false,
 		IsWorkSession:  true,
 	}
 	return &App{
@@ -108,7 +108,7 @@ func (m *App) View() string {
 	case taskListView:
 		return common.AppStyle.Render(m.list.View())
 	case timeView:
-		return common.AppStyle.Render(m.timeModel.View())
+		return common.AppStyle.Render(m.timeModel.ViewWithSettings(&m.settingModel.Settings))
 	case taskInputView:
 		return common.AppStyle.Render(m.taskInput.View())
 	case settingView:
