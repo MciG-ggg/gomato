@@ -22,6 +22,7 @@ const (
 	longBreak   = 2
 	cycle       = 3
 	timeDisplay = 4
+	languageOpt = 5 // 新增语言选项索引
 )
 
 var (
@@ -44,10 +45,12 @@ type SettingModel struct {
 	Settings           common.Settings
 	timeDisplayOptions []string
 	timeDisplayIndex   int
+	languageOptions    []string // 新增语言选项
+	languageIndex      int      // 当前语言索引
 }
 
 func NewSettingModel() SettingModel {
-	tabs := []string{"Timer", "Appearance", "Notifications"}
+	tabs := []string{"General", "Timer", "Appearance", "Notifications"}
 
 	settings, err := common.LoadSettings()
 	if err != nil {
@@ -59,6 +62,7 @@ func NewSettingModel() SettingModel {
 		inputs:             make([]textinput.Model, 4),
 		Settings:           settings,
 		timeDisplayOptions: []string{"ANSI艺术显示", "普通数字显示"},
+		languageOptions:    []string{"中文", "English"},
 	}
 
 	// 设置时间显示方式的初始索引
@@ -66,6 +70,13 @@ func NewSettingModel() SettingModel {
 		m.timeDisplayIndex = 1
 	} else {
 		m.timeDisplayIndex = 0 // 默认ANSI
+	}
+
+	// 设置语言的初始索引
+	if m.Settings.Language == "en" {
+		m.languageIndex = 1
+	} else {
+		m.languageIndex = 0 // 默认中文
 	}
 
 	var t textinput.Model
@@ -154,6 +165,13 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 				m.Settings.TimeDisplayMode = "ansi"
 			}
 
+			// 保存语言
+			if m.languageIndex == 1 {
+				m.Settings.Language = "en"
+			} else {
+				m.Settings.Language = "zh"
+			}
+
 			m.Settings.Save()
 
 			return m, func() tea.Msg { return backMsg{} }
@@ -180,8 +198,8 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 				m.focusIndex++
 			}
 
-			// 更新焦点范围，包含时间显示方式选择器
-			maxFocusIndex := len(m.inputs) + 1 // +1 for time display selector
+			// 更新焦点范围，包含时间显示方式和语言选择器
+			maxFocusIndex := len(m.inputs) + 2 // +1 for time display, +1 for language
 			if m.focusIndex > maxFocusIndex {
 				m.focusIndex = 0
 			} else if m.focusIndex < 0 {
@@ -205,6 +223,8 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 		case "right", "l":
 			if m.focusIndex == timeDisplay {
 				m.timeDisplayIndex = min(len(m.timeDisplayOptions)-1, m.timeDisplayIndex+1)
+			} else if m.focusIndex == languageOpt {
+				m.languageIndex = min(len(m.languageOptions)-1, m.languageIndex+1)
 			} else {
 				m.ActiveTab = min(m.ActiveTab+1, len(m.Tabs)-1)
 			}
@@ -212,17 +232,25 @@ func (m SettingModel) Update(msg tea.Msg) (SettingModel, tea.Cmd) {
 		case "left", "h":
 			if m.focusIndex == timeDisplay {
 				m.timeDisplayIndex = max(0, m.timeDisplayIndex-1)
+			} else if m.focusIndex == languageOpt {
+				m.languageIndex = max(0, m.languageIndex-1)
 			} else {
 				m.ActiveTab = max(m.ActiveTab-1, 0)
 			}
 			return m, nil
-		// 时间显示方式选择
+		// 语言选择快捷键
 		case "1", "2":
 			if m.focusIndex == timeDisplay {
 				if msg.String() == "1" {
 					m.timeDisplayIndex = 0
 				} else if msg.String() == "2" {
 					m.timeDisplayIndex = 1
+				}
+			} else if m.focusIndex == languageOpt {
+				if msg.String() == "1" {
+					m.languageIndex = 0
+				} else if msg.String() == "2" {
+					m.languageIndex = 1
 				}
 			}
 			return m, nil
@@ -296,6 +324,42 @@ func (m SettingModel) View() string {
 
 	var windowContent string
 	if m.ActiveTab == 0 {
+		// General 标签页，仅显示语言设置
+		var b strings.Builder
+		languagePrompt := "语言(Language): "
+		if m.focusIndex == languageOpt {
+			languagePrompt = focusedStyle.Render(languagePrompt)
+		}
+		b.WriteString(languagePrompt)
+		b.WriteRune('\n')
+		for i, option := range m.languageOptions {
+			prefix := "  "
+			if i == m.languageIndex {
+				prefix = "> "
+			}
+			if m.focusIndex == languageOpt {
+				if i == m.languageIndex {
+					b.WriteString(focusedStyle.Render(prefix + option))
+				} else {
+					b.WriteString(prefix + option)
+				}
+			} else {
+				if i == m.languageIndex {
+					b.WriteString(focusedStyle.Render(prefix + option))
+				} else {
+					b.WriteString(prefix + option)
+				}
+			}
+			b.WriteRune('\n')
+		}
+		button := &blurredButton
+		if m.focusIndex == len(m.inputs)+2 {
+			button = &focusedButton
+		}
+		fmt.Fprintf(&b, "\n\n%s\n\n", *button)
+		windowContent = b.String()
+	} else if m.ActiveTab == 1 {
+		// Timer 标签页
 		var b strings.Builder
 		for i := range m.inputs {
 			b.WriteString(m.inputs[i].View())
@@ -303,7 +367,6 @@ func (m SettingModel) View() string {
 				b.WriteRune('\n')
 			}
 		}
-
 		// 添加时间显示方式选择器
 		b.WriteRune('\n')
 		timeDisplayPrompt := "时间显示方式: "
@@ -312,7 +375,6 @@ func (m SettingModel) View() string {
 		}
 		b.WriteString(timeDisplayPrompt)
 		b.WriteRune('\n')
-
 		for i, option := range m.timeDisplayOptions {
 			prefix := "  "
 			if i == m.timeDisplayIndex {
@@ -333,15 +395,14 @@ func (m SettingModel) View() string {
 			}
 			b.WriteRune('\n')
 		}
-
 		button := &blurredButton
-		if m.focusIndex == len(m.inputs)+1 {
+		if m.focusIndex == len(m.inputs)+2 {
 			button = &focusedButton
 		}
 		fmt.Fprintf(&b, "\n\n%s\n\n", *button)
 		windowContent = b.String()
 	} else {
-		// Just placeholder content for other tabs for now
+		// 其他标签页
 		windowContent = fmt.Sprintf("%s Content", m.Tabs[m.ActiveTab])
 	}
 
@@ -387,5 +448,11 @@ func (m *SettingModel) ReloadInputsFromSettings() {
 		m.timeDisplayIndex = 1
 	} else {
 		m.timeDisplayIndex = 0 // 默认ANSI
+	}
+	// 重新加载语言设置
+	if m.Settings.Language == "en" {
+		m.languageIndex = 1
+	} else {
+		m.languageIndex = 0
 	}
 }

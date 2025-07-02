@@ -12,6 +12,7 @@ type Settings struct {
 	LongBreak       uint   `json:"longBreak"`
 	Cycle           uint   `json:"cycle"`
 	TimeDisplayMode string `json:"timeDisplayMode"` // "normal" 或 "ansi"
+	Language        string `json:"language"`        // "zh" 或 "en"
 }
 
 var defaultSettings = Settings{
@@ -20,6 +21,7 @@ var defaultSettings = Settings{
 	LongBreak:       15,
 	Cycle:           4,
 	TimeDisplayMode: "ansi", // 默认使用ANSI艺术显示
+	Language:        "zh",   // 默认中文
 }
 
 func getSettingsPath() (string, error) {
