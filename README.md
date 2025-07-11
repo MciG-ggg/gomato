@@ -31,6 +31,7 @@ pkg/
 - 支持优雅退出（Ctrl+C）
 - 任务数据自动保存和加载
 - 跨平台支持（根据操作系统自动选择清屏方式）
+- **Windows/Linux 桌面通知支持（Windows 需安装 go-toast 依赖）**
 - **新增：TUI界面** - 现代化的终端用户界面
 
 ## 时间显示方式选择
@@ -63,7 +64,17 @@ pkg/
 
 1. 确保已安装 Go 1.21 或更高版本
 2. 克隆此仓库
-3. 运行程序：
+3. 安装 Windows 通知依赖（仅 Windows 用户，Linux 用户可跳过）：
+
+```bash
+# Windows 下支持原生通知弹窗
+# 需安装 go-toast 依赖
+# 仅在 Windows 下执行
+
+go get github.com/go-toast/toast
+```
+
+4. 运行程序：
 
 ### 方式一：TUI界面运行（推荐）
 ```bash
