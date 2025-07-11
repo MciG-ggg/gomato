@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gomato/pkg/common"
 	"gomato/pkg/logging"
+	"gomato/pkg/notice"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -36,6 +37,8 @@ func handleTick(m *App) tea.Cmd {
 					m.timeModel.IsWorkSession = false
 					m.timeModel.TimerRemaining = int(m.settingModel.Settings.ShortBreak) * 60
 					statusMsg := fmt.Sprintf("工作结束，开始休息！\n现在是休息时间！(第%d/%d次)", m.CurrentCycleCount, m.settingModel.Settings.Cycle)
+					// 通知：工作结束
+					notice.SendNotification("番茄钟", "工作时间结束，开始休息！")
 					if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 						m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 						m.taskManager.Save()
@@ -51,6 +54,8 @@ func handleTick(m *App) tea.Cmd {
 					m.timeModel.IsWorkSession = false
 					m.timeModel.TimerRemaining = int(m.settingModel.Settings.LongBreak) * 60
 					statusMsg := "本周期已完成，进入长休息！"
+					// 通知：本周期已完成，进入长休息
+					notice.SendNotification("番茄钟", "本周期已完成，进入长休息！")
 					if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 						m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 						m.taskManager.Save()
@@ -66,6 +71,8 @@ func handleTick(m *App) tea.Cmd {
 				m.timeModel.TimerIsRunning = true // 自动开始新一轮
 				m.timeModel.TimerRemaining = int(m.settingModel.Settings.Pomodoro) * 60
 				logging.Log(fmt.Sprintf("[Cycle] 休息结束，开始新一轮工作。当前cycle计数: %d/%d", m.CurrentCycleCount, m.settingModel.Settings.Cycle))
+				// 通知：休息结束，开始新一轮工作
+				notice.SendNotification("番茄钟", "休息结束，开始新一轮工作！")
 				if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 					m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 					m.taskManager.Save()
