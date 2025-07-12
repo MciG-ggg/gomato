@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/go-toast/toast"
+	"github.com/gen2brain/beeep"
 )
 
 const noticeMaintainTime = 10000
@@ -16,12 +16,6 @@ func SendNotification(title, message string) {
 	case "linux":
 		exec.Command("notify-send", "-t", fmt.Sprintf("%d", noticeMaintainTime), title, message).Run()
 	case "windows":
-		(&toast.Notification{
-			AppID:    "Gomato",
-			Title:    title,
-			Message:  message,
-			Duration: toast.Short,
-		}).Push()
-
+		beeep.Notify(title, message, "")
 	}
 }
