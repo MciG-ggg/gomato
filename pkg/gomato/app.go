@@ -32,15 +32,18 @@ type App struct {
 	CurrentCycleCount int
 }
 
-func NewApp() *App {
+// 依赖注入构造函数
+func NewApp(taskManager *task.Manager, settings common.Settings) *App {
 	delegateKeys := keymap.NewDelegateKeyMap()
 	listKeys := keymap.NewListKeyMap()
 	timeViewKeys := keymap.NewTimeViewKeyMap()
-	taskManager, _ := task.NewManager()
+
 	if len(taskManager.Tasks) == 0 {
 		taskManager.AddItem("欢迎使用Gomato!", "这是一个番茄钟应用，希望能帮助你提高效率。")
 	}
-	settingModel := NewSettingModel()
+
+	// 用注入的 settings 构造 SettingModel
+	settingModel := NewSettingModelWithSettings(settings)
 	for i := range taskManager.Tasks {
 		taskManager.Tasks[i].Timer = task.TimeModel{
 			TimerDuration:  int(settingModel.Settings.Pomodoro) * 60,

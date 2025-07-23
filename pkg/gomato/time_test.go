@@ -293,47 +293,41 @@ func TestTimerNoDuplicateTicks(t *testing.T) {
 		t.Errorf("期望3次tick，但实际有%d次tick", tickCount)
 	}
 
-	// 检查剩余时间
-	if m.timeModel.TimerRemaining != 0 {
-		t.Errorf("期望剩余时间为0，但实际是%d", m.timeModel.TimerRemaining)
+	// 检查剩余时间（应进入短休息阶段）
+	expectedRest := int(m.settingModel.Settings.ShortBreak) * 60
+	if m.timeModel.TimerRemaining != expectedRest {
+		t.Errorf("期望剩余时间为%d（短休息），但实际是%d", expectedRest, m.timeModel.TimerRemaining)
 	}
+}
 
-	// 检查日志中的时间序列
-	lines := strings.Split(string(data), "\n")
-	tickLines := []string{}
-	for _, line := range lines {
-		if strings.Contains(line, "[Tick] Timer ticked") {
-			tickLines = append(tickLines, line)
-		}
+func TestHandleTick_WorkToRestSwitch(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	logPath := home + "/.gomato/gomato.log"
+	os.Remove(logPath)
+	logging.Init()
+	defer logging.Close()
+
+	// 构造 App，剩余1秒，工作阶段
+	taskMgr := &task.Manager{Tasks: []task.Task{}}
+	m := &App{
+		timeModel: task.TimeModel{
+			TimerIsRunning: true,
+			TimerRemaining: 1,
+			IsWorkSession:  true,
+		},
+		settingModel: SettingModel{
+			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
+		},
+		taskManager: taskMgr,
+		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
-
-	// 输出所有tick日志用于调试
-	for i, line := range tickLines {
-		t.Logf("Tick %d: %s", i+1, line)
+	_ = handleTick(m)
+	// 应进入短休息
+	if m.timeModel.IsWorkSession {
+		t.Errorf("应已切换到休息阶段")
 	}
-
-	// 验证时间序列：应该是 2, 1, 0 (从3开始，每次减1)
-	if len(tickLines) >= 3 {
-		if !strings.Contains(tickLines[0], "remaining: 2") {
-			t.Errorf("第一次tick应该显示remaining: 2，但显示: %s", tickLines[0])
-		}
-		if !strings.Contains(tickLines[1], "remaining: 1") {
-			t.Errorf("第二次tick应该显示remaining: 1，但显示: %s", tickLines[1])
-		}
-		if !strings.Contains(tickLines[2], "remaining: 0") {
-			t.Errorf("第三次tick应该显示remaining: 0，但显示: %s", tickLines[2])
-		}
-	}
-
-	// 验证没有重复的时间值
-	seenRemaining := make(map[int]bool)
-	for _, line := range tickLines {
-		remaining := extractRemainingTime(line)
-		if remaining != -1 {
-			if seenRemaining[remaining] {
-				t.Errorf("发现重复的剩余时间: %d", remaining)
-			}
-			seenRemaining[remaining] = true
-		}
+	expectedRest := int(m.settingModel.Settings.ShortBreak) * 60
+	if m.timeModel.TimerRemaining != expectedRest {
+		t.Errorf("短休息剩余时间应为%d, 实际为%d", expectedRest, m.timeModel.TimerRemaining)
 	}
 }

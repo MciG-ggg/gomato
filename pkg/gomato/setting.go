@@ -12,6 +12,70 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// 支持依赖注入 settings 的构造函数
+func NewSettingModelWithSettings(settings common.Settings) SettingModel {
+	tabs := []string{"General", "Timer", "Appearance", "Notifications"}
+
+	m := SettingModel{
+		Tabs:               tabs,
+		inputs:             make([]textinput.Model, 4),
+		Settings:           settings,
+		timeDisplayOptions: []string{"ANSI艺术显示", "普通数字显示"},
+		languageOptions:    []string{"中文", "English"},
+	}
+
+	// 设置时间显示方式的初始索引
+	if m.Settings.TimeDisplayMode == "normal" {
+		m.timeDisplayIndex = 1
+	} else {
+		m.timeDisplayIndex = 0 // 默认ANSI
+	}
+
+	// 设置语言的初始索引
+	if m.Settings.Language == "en" {
+		m.languageIndex = 1
+	} else {
+		m.languageIndex = 0 // 默认中文
+	}
+
+	var t textinput.Model
+	for i := range m.inputs {
+		t = textinput.New()
+		t.CharLimit = 3
+		t.Validate = func(s string) error {
+			if s == "" {
+				return nil
+			}
+			if _, err := strconv.Atoi(s); err != nil {
+				return fmt.Errorf("must be a number")
+			}
+			return nil
+		}
+
+		switch i {
+		case 0:
+			t.SetValue(fmt.Sprintf("%d", m.Settings.Pomodoro))
+			t.Placeholder = "25"
+			t.Prompt = "Pomodoro: "
+		case 1:
+			t.SetValue(fmt.Sprintf("%d", m.Settings.ShortBreak))
+			t.Placeholder = "5"
+			t.Prompt = "Short Break: "
+		case 2:
+			t.SetValue(fmt.Sprintf("%d", m.Settings.LongBreak))
+			t.Placeholder = "15"
+			t.Prompt = "Long Break: "
+		case 3:
+			t.SetValue(fmt.Sprintf("%d", m.Settings.Cycle))
+			t.Placeholder = "4"
+			t.Prompt = "Cycle (每周期工作/短休息次数): "
+		}
+
+		m.inputs[i] = t
+	}
+	return m
+}
+
 type (
 	errMsg error
 )
