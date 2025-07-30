@@ -1,8 +1,11 @@
 package gomato
 
 import (
+	"fmt"
 	"gomato/pkg/common"
 	"gomato/pkg/keymap"
+	"gomato/pkg/logging"
+	"gomato/pkg/p2p"
 	"gomato/pkg/task"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -30,6 +33,11 @@ type App struct {
 	settingModel      SettingModel
 	taskInput         TaskInputModel
 	CurrentCycleCount int
+
+	// p2p
+	node        *p2p.Node
+	rooManager  *p2p.RoomManager
+	currentRoom *p2p.Room
 }
 
 // 依赖注入构造函数
@@ -58,6 +66,11 @@ func NewApp(taskManager *task.Manager, settings common.Settings) *App {
 		TimerIsRunning: false,
 		IsWorkSession:  true,
 	}
+	// 初始化P2P节点
+	node, err := p2p.NewNode("")
+	if err != nil {
+		logging.Log(fmt.Sprintf("Failed to create P2P node: %v", err))
+	}
 	return &App{
 		currentView:       taskListView,
 		currentTaskIndex:  0,
@@ -70,6 +83,10 @@ func NewApp(taskManager *task.Manager, settings common.Settings) *App {
 		timeModel:         taskTimeModel,
 		settingModel:      settingModel,
 		CurrentCycleCount: 0,
+
+		// p2p
+		node:       node,
+		rooManager: node.GetRooMgr(),
 	}
 }
 
