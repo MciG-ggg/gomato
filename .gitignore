@@ -24,4 +24,4 @@
 .DS_Store 
 
 # key文件
-.key
+*.key

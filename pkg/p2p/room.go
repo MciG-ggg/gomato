@@ -44,7 +44,25 @@ func (rm *RoomManager) JoinRoom(roomKey string) error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	// 创建或获取房间
+	// 检查是否已经在房间中
+	if rm.room != nil && rm.room.Key == roomKey {
+		return nil
+	}
+
+	// 如果已经在其他房间，先离开
+	if rm.room != nil {
+		// 清理现有房间
+		if rm.sub != nil {
+			rm.sub.Cancel()
+			rm.sub = nil
+		}
+		if rm.topic != nil {
+			rm.topic.Close()
+			rm.topic = nil
+		}
+	}
+
+	// 创建新房间
 	rm.room = &Room{
 		Key:     roomKey,
 		Members: make(map[string]*Member),
@@ -160,8 +178,13 @@ func (rm *RoomManager) handleMessage(msg *Message) {
 	case MsgJoin:
 		if msg.Member != nil {
 			// 只在成员不存在时添加
-			if _, exists := rm.room.Members[msg.Member.ID]; !exists {
+			if existingMember, exists := rm.room.Members[msg.Member.ID]; !exists {
 				rm.room.Members[msg.Member.ID] = msg.Member
+			} else {
+				// 如果成员已存在，保留现有状态，只更新其他信息
+				existingMember.Name = msg.Member.Name
+				existingMember.Timer = msg.Member.Timer
+				existingMember.UpdatedAt = msg.Member.UpdatedAt
 			}
 		}
 	case MsgLeave:

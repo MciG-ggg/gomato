@@ -42,6 +42,11 @@ type App struct {
 
 // 依赖注入构造函数
 func NewApp(taskManager *task.Manager, settings common.Settings) *App {
+	return NewAppWithKeyPath(taskManager, settings, "")
+}
+
+// 带密钥路径的构造函数
+func NewAppWithKeyPath(taskManager *task.Manager, settings common.Settings, keyPath string) *App {
 	delegateKeys := keymap.NewDelegateKeyMap()
 	listKeys := keymap.NewListKeyMap()
 	timeViewKeys := keymap.NewTimeViewKeyMap()
@@ -67,7 +72,7 @@ func NewApp(taskManager *task.Manager, settings common.Settings) *App {
 		IsWorkSession:  true,
 	}
 	// 初始化P2P节点
-	node, err := p2p.NewNode("")
+	node, err := p2p.NewNode(keyPath)
 	if err != nil {
 		logging.Log(fmt.Sprintf("Failed to create P2P node: %v", err))
 	}
@@ -86,7 +91,7 @@ func NewApp(taskManager *task.Manager, settings common.Settings) *App {
 
 		// p2p
 		node:       node,
-		rooManager: node.GetRooMgr(),
+		rooManager: node.GetRoomMgr(),
 	}
 }
 
