@@ -21,6 +21,9 @@ const (
 
 type viewState int
 
+// 自定义退出消息
+type quitMsg struct{}
+
 type App struct {
 	currentView       viewState
 	currentTaskIndex  int
@@ -38,6 +41,7 @@ type App struct {
 	node        *p2p.Node
 	rooManager  *p2p.RoomManager
 	currentRoom *p2p.Room
+	roomUI      RoomUIModel
 }
 
 // 依赖注入构造函数
@@ -76,6 +80,10 @@ func NewAppWithKeyPath(taskManager *task.Manager, settings common.Settings, keyP
 	if err != nil {
 		logging.Log(fmt.Sprintf("Failed to create P2P node: %v", err))
 	}
+
+	// 初始化房间UI
+	roomUI := NewRoomUIModel(node.GetRoomMgr())
+
 	return &App{
 		currentView:       taskListView,
 		currentTaskIndex:  0,
@@ -92,6 +100,7 @@ func NewAppWithKeyPath(taskManager *task.Manager, settings common.Settings, keyP
 		// p2p
 		node:       node,
 		rooManager: node.GetRoomMgr(),
+		roomUI:     roomUI,
 	}
 }
 
@@ -101,6 +110,27 @@ func (m *App) Init() tea.Cmd {
 
 func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// 处理Ctrl+C退出
+		if msg.Type == tea.KeyCtrlC {
+			// 清理P2P状态
+			if m.roomUI.IsInRoom() {
+				m.roomUI.roomManager.LeaveRoom()
+			}
+			if m.node != nil {
+				m.node.Close()
+			}
+			return m, tea.Quit
+		}
+	case quitMsg:
+		// 处理自定义退出消息
+		if m.roomUI.IsInRoom() {
+			m.roomUI.roomManager.LeaveRoom()
+		}
+		if m.node != nil {
+			m.node.Close()
+		}
+		return m, tea.Quit
 	case taskCreatedMsg:
 		return handleTaskCreated(m, msg)
 	case backMsg:
@@ -113,6 +143,11 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, handleTick(m)
 	}
+
+	// 处理房间UI更新
+	var roomCmd tea.Cmd
+	m.roomUI, roomCmd = m.roomUI.Update(msg)
+
 	var cmd tea.Cmd
 	switch m.currentView {
 	case taskListView:
@@ -125,20 +160,29 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settingModel, cmd = m.settingModel.Update(msg)
 	}
 
-	return m, cmd
+	return m, tea.Batch(roomCmd, cmd)
 }
 
 func (m *App) View() string {
+	var mainView string
 	switch m.currentView {
 	case taskListView:
-		return common.AppStyle.Render(m.list.View())
+		mainView = common.AppStyle.Render(m.list.View())
 	case timeView:
-		return common.AppStyle.Render(m.timeModel.ViewWithSettings(&m.settingModel.Settings))
+		mainView = common.AppStyle.Render(m.timeModel.ViewWithSettings(&m.settingModel.Settings))
 	case taskInputView:
-		return common.AppStyle.Render(m.taskInput.View())
+		mainView = common.AppStyle.Render(m.taskInput.View())
 	case settingView:
-		return m.settingModel.View()
+		mainView = m.settingModel.View()
 	default:
-		return ""
+		mainView = ""
 	}
+
+	// 如果房间UI可见，则显示房间UI
+	roomView := m.roomUI.View()
+	if roomView != "" {
+		return roomView
+	}
+
+	return mainView
 }

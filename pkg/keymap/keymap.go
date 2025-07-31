@@ -13,6 +13,9 @@ type ListKeyMap struct {
 	ToggleHelpMenu   key.Binding
 	InsertItem       key.Binding
 	ChooseTask       key.Binding
+	JoinRoom         key.Binding
+	LeaveRoom        key.Binding
+	ShowMembers      key.Binding
 }
 
 func NewListKeyMap() *ListKeyMap {
@@ -44,6 +47,18 @@ func NewListKeyMap() *ListKeyMap {
 		ToggleHelpMenu: key.NewBinding(
 			key.WithKeys("H"),
 			key.WithHelp("H", "toggle help"),
+		),
+		JoinRoom: key.NewBinding(
+			key.WithKeys("ctrl+r"),
+			key.WithHelp("ctrl+r", "join room"),
+		),
+		LeaveRoom: key.NewBinding(
+			key.WithKeys("ctrl+l"),
+			key.WithHelp("ctrl+l", "leave room"),
+		),
+		ShowMembers: key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("ctrl+m", "show members"),
 		),
 	}
 }

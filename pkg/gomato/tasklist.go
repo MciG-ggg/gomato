@@ -27,6 +27,9 @@ func NewTaskList(listKeys *keymap.ListKeyMap, delegateKeys *keymap.DelegateKeyMa
 			listKeys.ToggleStatusBar,
 			listKeys.TogglePagination,
 			listKeys.ToggleHelpMenu,
+			listKeys.JoinRoom,
+			listKeys.LeaveRoom,
+			listKeys.ShowMembers,
 		}
 	}
 	return taskList
@@ -130,6 +133,18 @@ func updateTaskListView(m *App, msg tea.Msg) tea.Cmd {
 				m.list.NewStatusMessage(statusMessageStyle("任务已选择，计时已开始！")),
 				tick(),
 			)
+		case key.Matches(keyMsg, m.keys.JoinRoom):
+			m.roomUI = m.roomUI.ShowInput()
+			return nil
+		case key.Matches(keyMsg, m.keys.LeaveRoom):
+			m.roomUI = m.roomUI.Hide()
+			return nil
+		case key.Matches(keyMsg, m.keys.ShowMembers):
+			if m.roomUI.IsInRoom() {
+				// 切换成员列表显示状态
+				m.roomUI, _ = m.roomUI.Update(toggleMembersMsg{})
+			}
+			return nil
 		}
 	}
 

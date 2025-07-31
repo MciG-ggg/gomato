@@ -96,6 +96,12 @@ func handleTick(m *App) tea.Cmd {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
 		}
+
+		// 广播状态到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
+		}
+
 		// 只有在计时器仍在运行时才返回tick命令
 		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
 			return tea.Batch(statusCmd, tick())
@@ -121,6 +127,10 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		return nil
 	case key.Matches(keyMsg, m.timeViewKeys.StartPause):
 		m.timeModel.TimerIsRunning = !m.timeModel.TimerIsRunning
+		// 广播状态变化到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
+		}
 		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > -2 {
 			return tick()
 		}
@@ -132,6 +142,10 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
+		}
+		// 广播状态变化到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
 		}
 		return nil
 	}

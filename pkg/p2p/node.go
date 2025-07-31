@@ -114,3 +114,7 @@ func (n *Node) GetRoomMgr() *RoomManager {
 func (n *Node) GetDiscovery() *DiscoveryService {
 	return n.discovery
 }
+
+func (n *Node) GetHostID() string {
+	return n.host.ID().String()
+}

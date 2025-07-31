@@ -253,6 +253,21 @@ func (rm *RoomManager) GetMembers() map[string]*Member {
 	return members
 }
 
+func (rm *RoomManager) GetRoom() *Room {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	return rm.room
+}
+
+func (rm *RoomManager) GetNode() *Node {
+	return rm.node
+}
+
+// BroadcastState 广播当前成员的状态更新到房间
+// 如果房间或主题不存在，返回错误
+// 如果序列化失败，返回错误
+// 如果发布失败，返回错误
+// 如果成功，返回 nil
 func (rm *RoomManager) BroadcastState(member *Member) error {
 	logging.Log(fmt.Sprintf("BroadcastState called with member: %+v\n", member))
 
