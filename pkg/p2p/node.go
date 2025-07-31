@@ -9,16 +9,16 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
 type Node struct {
-	host    host.Host
-	ctx     context.Context
-	cancel  context.CancelFunc
-	roomMgr *RoomManager
+	host      host.Host
+	ctx       context.Context
+	cancel    context.CancelFunc
+	roomMgr   *RoomManager
+	discovery *DiscoveryService
 }
 
 func NewNode(keyPath string) (*Node, error) {
@@ -55,10 +55,21 @@ func NewNode(keyPath string) (*Node, error) {
 
 	node.roomMgr = NewRoomManager(node)
 
+	// 创建发现服务
+	node.discovery = NewDiscoveryService(
+		node.host,
+		func(peerID peer.ID) {
+			logging.Log(fmt.Sprintf("🎉 发现新节点: %s\n", peerID.String()))
+		},
+		func(peerID peer.ID) {
+			logging.Log(fmt.Sprintf("👋 节点断开: %s\n", peerID.String()))
+		},
+	)
+
 	// 启动发现服务
 	go func() {
 		time.Sleep(100 * time.Millisecond) // 确保主机完全初始化
-		if err := node.startDiscovery(); err != nil {
+		if err := node.discovery.Start(); err != nil {
 			logging.Log(fmt.Sprintf("Failed to start discovery: %v", err))
 		}
 	}()
@@ -67,29 +78,28 @@ func NewNode(keyPath string) (*Node, error) {
 }
 
 func (n *Node) HandlePeerFound(pi peer.AddrInfo) {
-	logging.Log(fmt.Sprintf("✅ mDNS 发现节点: %s\n", pi.ID.String()))
-
-	// 尝试连接到发现的节点
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	if err := n.host.Connect(ctx, pi); err != nil {
-		logging.Log(fmt.Sprintf("❌ 连接节点 %s 失败: %v\n", pi.ID.String(), err))
-	} else {
-		logging.Log(fmt.Sprintf("🎉 成功连接到节点: %s\n", pi.ID.String()))
+	// 委托给发现服务处理
+	if n.discovery != nil {
+		n.discovery.HandlePeerFound(pi)
 	}
 }
 
 func (n *Node) startDiscovery() error {
-	// 使用mDNS进行局域网发现
-	service := mdns.NewMdnsService(n.host, "gomato-p2p", n)
-
-	// 启动 mDNS 服务
-	return service.Start()
+	// 这个方法现在委托给 DiscoveryService
+	if n.discovery != nil {
+		return n.discovery.Start()
+	}
+	return fmt.Errorf("discovery service not initialized")
 }
 
 func (n *Node) Close() error {
 	n.cancel()
+
+	// 停止发现服务
+	if n.discovery != nil {
+		n.discovery.Stop()
+	}
+
 	return n.host.Close()
 }
 
@@ -99,4 +109,8 @@ func (n *Node) GetHost() host.Host {
 
 func (n *Node) GetRoomMgr() *RoomManager {
 	return n.roomMgr
+}
+
+func (n *Node) GetDiscovery() *DiscoveryService {
+	return n.discovery
 }

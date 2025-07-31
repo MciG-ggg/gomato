@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"gomato/pkg/logging"
 	"sync"
@@ -141,19 +140,16 @@ func (rm *RoomManager) handleMessages() {
 			continue
 		}
 
-		// 不要忽略自己的消息，因为我们需要处理自己的加入消息
-		// if msg.ReceivedFrom == rm.node.host.ID() {
-		// 	continue // 忽略自己的消息
-		// }
-
-		var message Message
-		if err := json.Unmarshal(msg.Data, &message); err != nil {
+		// 使用新的消息反序列化函数
+		message, err := DeserializeMessage(msg.Data)
+		if err != nil {
 			logging.Log(fmt.Sprintf("Failed to decode message: %v\n", err))
 			continue
 		}
 
-		logging.Log(fmt.Sprintf("Received message: %+v from %s\n", message, msg.ReceivedFrom))
-		rm.handleMessage(&message)
+		// 记录接收到的消息
+		LogMessage(message, msg.ReceivedFrom.String(), "Received")
+		rm.handleMessage(message)
 	}
 }
 
@@ -195,21 +191,18 @@ func (rm *RoomManager) handleMessage(msg *Message) {
 }
 
 func (rm *RoomManager) broadcastJoin() {
-	member := &Member{
-		ID:        rm.node.host.ID().String(),
-		Name:      "用户", // TODO: 从配置获取用户名
-		State:     StateIdle,
-		UpdatedAt: time.Now().Unix(),
-	}
+	member := CreateMemberFromNode(
+		rm.node.host.ID().String(),
+		"用户", // TODO: 从配置获取用户名
+		StateIdle,
+		TimerInfo{},
+	)
 
-	msg := Message{
-		Type:   MsgJoin,
-		Member: member,
-	}
+	msg := CreateJoinMessage(member, rm.room.Key)
 
-	data, err := json.Marshal(msg)
+	data, err := SerializeMessage(msg)
 	if err != nil {
-		logging.Log(fmt.Sprintf("Failed to marshal join message: %v\n", err))
+		logging.Log(fmt.Sprintf("Failed to serialize join message: %v\n", err))
 		return
 	}
 
@@ -222,21 +215,18 @@ func (rm *RoomManager) broadcastJoin() {
 }
 
 func (rm *RoomManager) broadcastLeave() {
-	member := &Member{
-		ID:        rm.node.host.ID().String(),
-		Name:      "用户",
-		State:     StateIdle,
-		UpdatedAt: time.Now().Unix(),
-	}
+	member := CreateMemberFromNode(
+		rm.node.host.ID().String(),
+		"用户",
+		StateIdle,
+		TimerInfo{},
+	)
 
-	msg := Message{
-		Type:   MsgLeave,
-		Member: member,
-	}
+	msg := CreateLeaveMessage(member, rm.room.Key)
 
-	data, err := json.Marshal(msg)
+	data, err := SerializeMessage(msg)
 	if err != nil {
-		logging.Log(fmt.Sprintf("Failed to marshal leave message: %v\n", err))
+		logging.Log(fmt.Sprintf("Failed to serialize leave message: %v\n", err))
 		return
 	}
 
@@ -271,14 +261,11 @@ func (rm *RoomManager) BroadcastState(member *Member) error {
 		return fmt.Errorf("not in a room")
 	}
 
-	msg := Message{
-		Type:   MsgStateUpdate,
-		Member: member,
-	}
+	msg := CreateStateUpdateMessage(member)
 
-	data, err := json.Marshal(msg)
+	data, err := SerializeMessage(msg)
 	if err != nil {
-		logging.Log(fmt.Sprintf("BroadcastState failed to marshal: %v\n", err))
+		logging.Log(fmt.Sprintf("BroadcastState failed to serialize: %v\n", err))
 		return err
 	}
 
