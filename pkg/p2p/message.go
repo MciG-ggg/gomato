@@ -100,12 +100,13 @@ func CreateLeaveMessage(member *Member, roomKey string) *Message {
 }
 
 // CreateMemberFromNode 从节点信息创建成员
-func CreateMemberFromNode(nodeID string, name string, state MemberState, timer TimerInfo) *Member {
+func CreateMemberFromNode(nodeID string, name string, state MemberState, timer TimerInfo, taskName string) *Member {
 	return &Member{
 		ID:        nodeID,
 		Name:      name,
 		State:     state,
 		Timer:     timer,
+		TaskName:  taskName,
 		UpdatedAt: time.Now().Unix(),
 	}
 }
@@ -121,5 +122,5 @@ func IsMessageFromSelf(msg *Message, selfID string) bool {
 // LogMessage 记录消息日志
 func LogMessage(msg *Message, from string, action string) {
 	logging.Log(fmt.Sprintf("[%s] %s message from %s: Type=%s, Member=%s\n",
-		action, msg.Type, from, msg.Member.ID))
+		action, msg.Type, from, msg.Member.ID, msg.Member.Name))
 }

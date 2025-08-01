@@ -91,6 +91,21 @@ func (d DelegateKeyMap) ShortHelp() []key.Binding {
 	}
 }
 
+// 房间UI的按键映射
+// RoomKeyMap 用于房间UI的操作
+type RoomKeyMap struct {
+	LeaveRoom key.Binding
+}
+
+func NewRoomKeyMap() *RoomKeyMap {
+	return &RoomKeyMap{
+		LeaveRoom: key.NewBinding(
+			key.WithKeys("q", "esc"),
+			key.WithHelp("q/esc", "leave room"),
+		),
+	}
+}
+
 // FullHelp 实现help.KeyMap接口
 func (d DelegateKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{

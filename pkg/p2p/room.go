@@ -196,6 +196,7 @@ func (rm *RoomManager) broadcastJoin() {
 		"用户", // TODO: 从配置获取用户名
 		StateIdle,
 		TimerInfo{},
+		"", // 加入时没有任务名
 	)
 
 	msg := CreateJoinMessage(member, rm.room.Key)
@@ -220,6 +221,7 @@ func (rm *RoomManager) broadcastLeave() {
 		"用户",
 		StateIdle,
 		TimerInfo{},
+		"", // 离开时没有任务名
 	)
 
 	msg := CreateLeaveMessage(member, rm.room.Key)

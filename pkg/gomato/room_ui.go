@@ -3,14 +3,44 @@ package gomato
 import (
 	"fmt"
 	"gomato/pkg/common"
+	"gomato/pkg/keymap"
 	"gomato/pkg/p2p"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// MemberItem 实现 list.Item 接口，用于在列表中显示成员信息
+type MemberItem struct {
+	Member    *p2p.Member
+	JoinOrder int  // 加入顺序
+	IsSelf    bool // 是否是当前用户自己
+}
+
+func (i MemberItem) Title() string {
+	stateText := getStateText(i.Member.State)
+	timerText := getTimerText(i.Member.Timer)
+
+	// 如果有任务名，显示任务名
+	if i.Member.TaskName != "" {
+		return fmt.Sprintf("%s [%s] %s - %s", i.Member.Name, stateText, timerText, i.Member.TaskName)
+	}
+
+	return fmt.Sprintf("%s [%s] %s", i.Member.Name, stateText, timerText)
+}
+
+func (i MemberItem) Description() string {
+	return fmt.Sprintf("ID: %s", i.Member.ID)
+}
+
+func (i MemberItem) FilterValue() string {
+	return i.Member.Name
+}
 
 // 房间UI状态
 type roomUIState int
@@ -23,12 +53,13 @@ const (
 
 // 房间UI组件
 type RoomUIModel struct {
-	state       roomUIState
-	roomInput   textinput.Model
-	showMembers bool
-	roomManager *p2p.RoomManager
-	currentRoom *p2p.Room
-	lastUpdate  time.Time
+	state         roomUIState
+	roomInput     textinput.Model
+	roomManager   *p2p.RoomManager
+	memberList    list.Model
+	joinOrderMap  map[string]int     // 记录成员加入顺序
+	nextJoinOrder int                // 下一个加入顺序号
+	roomKeys      *keymap.RoomKeyMap // 房间UI快捷键
 }
 
 // 消息类型
@@ -48,11 +79,118 @@ func NewRoomUIModel(roomManager *p2p.RoomManager) RoomUIModel {
 	ti.CharLimit = 20
 	ti.Width = 30
 
+	// 创建房间快捷键映射
+	roomKeys := keymap.NewRoomKeyMap()
+
+	// 创建空的成员列表
+	memberList := list.New([]list.Item{}, newMemberDelegate(), 0, 0)
+	memberList.Title = "房间成员"
+	memberList.Styles.Title = common.TitleStyle
+	memberList.SetShowHelp(true) // 显示帮助菜单
+
+	// 设置快捷键提示，类似tasklist的方式
+	memberList.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			roomKeys.LeaveRoom,
+		}
+	}
+
 	return RoomUIModel{
-		state:       roomHidden,
-		roomInput:   ti,
-		showMembers: false,
-		roomManager: roomManager,
+		state:         roomHidden,
+		roomInput:     ti,
+		roomManager:   roomManager,
+		memberList:    memberList,
+		joinOrderMap:  make(map[string]int),
+		nextJoinOrder: 1,
+		roomKeys:      roomKeys,
+	}
+}
+
+// 创建成员委托，用于处理成员列表的显示
+func newMemberDelegate() list.ItemDelegate {
+	d := list.NewDefaultDelegate()
+	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+		// 成员列表不需要选择功能，所以这里不做任何处理
+		return nil
+	}
+
+	// 不显示快捷键帮助
+	d.ShortHelpFunc = func() []key.Binding {
+		return []key.Binding{}
+	}
+	d.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{}
+	}
+	return d
+}
+
+// 更新成员列表
+func (m *RoomUIModel) updateMemberList() {
+	members := m.roomManager.GetMembers()
+	var memberItems []list.Item
+
+	// 获取当前用户的ID
+	currentUserID := m.roomManager.GetNode().GetHostID()
+
+	// 将成员转换为MemberItem切片
+	var memberSlice []*MemberItem
+	for _, member := range members {
+		joinOrder, exists := m.joinOrderMap[member.ID]
+		if !exists {
+			// 新成员，分配加入顺序
+			joinOrder = m.nextJoinOrder
+			m.joinOrderMap[member.ID] = joinOrder
+			m.nextJoinOrder++
+		}
+
+		// 检查是否是当前用户
+		isSelf := member.ID == currentUserID
+
+		memberSlice = append(memberSlice, &MemberItem{
+			Member:    member,
+			JoinOrder: joinOrder,
+			IsSelf:    isSelf,
+		})
+	}
+
+	// 按加入顺序排序
+	sort.Slice(memberSlice, func(i, j int) bool {
+		return memberSlice[i].JoinOrder < memberSlice[j].JoinOrder
+	})
+
+	// 转换为list.Item切片并找到当前用户的索引
+	var currentUserIndex int = -1
+	for i, item := range memberSlice {
+		memberItems = append(memberItems, item)
+		if item.IsSelf {
+			currentUserIndex = i
+		}
+	}
+
+	// 更新列表
+	m.memberList.SetItems(memberItems)
+
+	// 如果找到当前用户，将其设置为选中项（显示为紫色）
+	if currentUserIndex >= 0 {
+		m.memberList.Select(currentUserIndex)
+	}
+}
+
+// 清理离开的成员
+func (m *RoomUIModel) cleanupLeftMembers() {
+	currentMembers := m.roomManager.GetMembers()
+
+	// 找出已离开的成员
+	var leftMemberIDs []string
+	for memberID := range m.joinOrderMap {
+		if _, exists := currentMembers[memberID]; !exists {
+			leftMemberIDs = append(leftMemberIDs, memberID)
+		}
+	}
+
+	// 从加入顺序映射中删除离开的成员
+	for _, memberID := range leftMemberIDs {
+		delete(m.joinOrderMap, memberID)
 	}
 }
 
@@ -68,11 +206,15 @@ func (m RoomUIModel) Update(msg tea.Msg) (RoomUIModel, tea.Cmd) {
 		return m.handleJoinRoom(msg)
 	case leaveRoomMsg:
 		return m.handleLeaveRoom()
-	case toggleMembersMsg:
-		return m.handleToggleMembers()
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
 	}
+
+	// 更新成员列表
+	m.updateMemberList()
+	m.cleanupLeftMembers()
+
+	m.memberList, cmd = m.memberList.Update(msg)
 
 	return m, cmd
 }
@@ -87,7 +229,9 @@ func (m RoomUIModel) handleJoinRoom(msg joinRoomMsg) (RoomUIModel, tea.Cmd) {
 	if err == nil {
 		m.state = roomVisible
 		m.roomInput.SetValue("")
-		m.showMembers = false
+		// 重置加入顺序
+		m.joinOrderMap = make(map[string]int)
+		m.nextJoinOrder = 1
 	}
 	return m, nil
 }
@@ -96,15 +240,9 @@ func (m RoomUIModel) handleJoinRoom(msg joinRoomMsg) (RoomUIModel, tea.Cmd) {
 func (m RoomUIModel) handleLeaveRoom() (RoomUIModel, tea.Cmd) {
 	m.roomManager.LeaveRoom()
 	m.state = roomHidden
-	m.showMembers = false
-	return m, nil
-}
-
-// 处理切换成员列表消息
-func (m RoomUIModel) handleToggleMembers() (RoomUIModel, tea.Cmd) {
-	if m.state == roomVisible {
-		m.showMembers = !m.showMembers
-	}
+	// 清理加入顺序
+	m.joinOrderMap = make(map[string]int)
+	m.nextJoinOrder = 1
 	return m, nil
 }
 
@@ -145,11 +283,9 @@ func (m RoomUIModel) handleInputKeyPress(msg tea.KeyMsg) (RoomUIModel, tea.Cmd) 
 
 // 处理可见状态的键盘按键
 func (m RoomUIModel) handleVisibleKeyPress(msg tea.KeyMsg) (RoomUIModel, tea.Cmd) {
-	switch msg.String() {
-	case "q", "Q", "esc":
+	switch {
+	case key.Matches(msg, m.roomKeys.LeaveRoom):
 		return m, func() tea.Msg { return leaveRoomMsg{} }
-	case "m", "M":
-		return m, func() tea.Msg { return toggleMembersMsg{} }
 	}
 	return m, nil
 }
@@ -194,67 +330,20 @@ func (m RoomUIModel) renderRoomStatus() string {
 	// 构建房间状态栏
 	statusBar := fmt.Sprintf("房间: %s | 成员: %d", room.Key, memberCount)
 
-	// 如果显示成员列表
-	if m.showMembers {
-		return m.renderRoomWithMembers(statusBar, members)
-	}
-
-	// 只显示状态栏
-	return common.AppStyle.Render(fmt.Sprintf(`
-┌─────────────────────────────────────┐
-│ %s                                  │
-│                                     │
-│ 按 m 显示成员列表                   │
-│ 按 q 或 Esc 离开房间                │
-└─────────────────────────────────────┘
-`, statusBar))
+	return m.renderRoom(statusBar)
 }
 
 // 渲染带成员列表的房间界面
-func (m RoomUIModel) renderRoomWithMembers(statusBar string, members map[string]*p2p.Member) string {
-	var memberLines []string
+func (m RoomUIModel) renderRoom(statusBar string) string {
+	// 使用list.Model来渲染成员列表
+	m.memberList.Title = statusBar
+	memberListView := m.memberList.View()
 
-	// 将成员转换为切片以便排序
-	var memberSlice []*p2p.Member
-	for _, member := range members {
-		memberSlice = append(memberSlice, member)
-	}
-
-	// 按名称排序
-	sort.Slice(memberSlice, func(i, j int) bool {
-		return memberSlice[i].Name < memberSlice[j].Name
-	})
-
-	// 构建成员列表
-	for _, member := range memberSlice {
-		stateText := m.getStateText(member.State)
-		timerText := m.getTimerText(member.Timer)
-		memberLine := fmt.Sprintf("  %s [%s] %s", member.Name, stateText, timerText)
-		memberLines = append(memberLines, memberLine)
-	}
-
-	// 如果没有成员，显示提示
-	if len(memberLines) == 0 {
-		memberLines = append(memberLines, "  暂无其他成员")
-	}
-
-	membersText := strings.Join(memberLines, "\n")
-
-	return common.AppStyle.Render(fmt.Sprintf(`
-┌─────────────────────────────────────┐
-│ %s │
-├─────────────────────────────────────┤
-│ 房间成员:                           │
-%s
-│                                     │
-│ 按 m 隐藏成员列表                   │
-│ 按 q 或 Esc 离开房间                │
-└─────────────────────────────────────┘
-`, statusBar, membersText))
+	return common.AppStyle.Render(fmt.Sprintf("%s\n", memberListView))
 }
 
 // 获取状态文本
-func (m RoomUIModel) getStateText(state p2p.MemberState) string {
+func getStateText(state p2p.MemberState) string {
 	switch state {
 	case p2p.StateWork:
 		return "工作中"
@@ -268,7 +357,7 @@ func (m RoomUIModel) getStateText(state p2p.MemberState) string {
 }
 
 // 获取计时器文本
-func (m RoomUIModel) getTimerText(timer p2p.TimerInfo) string {
+func getTimerText(timer p2p.TimerInfo) string {
 	if !timer.IsRunning {
 		return ""
 	}
@@ -293,7 +382,6 @@ func (m RoomUIModel) ShowInput() RoomUIModel {
 // 隐藏房间UI
 func (m RoomUIModel) Hide() RoomUIModel {
 	m.state = roomHidden
-	m.showMembers = false
 	return m
 }
 
@@ -317,11 +405,18 @@ func (m RoomUIModel) CreateMemberFromApp(app *App) *p2p.Member {
 		IsWork:    app.timeModel.IsWorkSession,
 	}
 
+	// 获取当前任务名
+	taskName := ""
+	if app.currentTaskIndex >= 0 && app.currentTaskIndex < len(app.taskManager.Tasks) {
+		taskName = app.taskManager.Tasks[app.currentTaskIndex].Title()
+	}
+
 	return &p2p.Member{
 		ID:        m.roomManager.GetNode().GetHostID(),
 		Name:      "用户", // TODO: 从配置获取用户名
 		State:     state,
 		Timer:     timerInfo,
+		TaskName:  taskName,
 		UpdatedAt: time.Now().Unix(),
 	}
 }

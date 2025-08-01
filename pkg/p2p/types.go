@@ -15,6 +15,7 @@ type Member struct {
 	Name      string      `json:"name"`
 	State     MemberState `json:"state"`
 	Timer     TimerInfo   `json:"timer"`
+	TaskName  string      `json:"taskName"` // 当前任务名称
 	UpdatedAt int64       `json:"updatedAt"`
 }
 

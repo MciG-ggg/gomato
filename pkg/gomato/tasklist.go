@@ -147,12 +147,6 @@ func updateTaskListView(m *App, msg tea.Msg) tea.Cmd {
 		case key.Matches(keyMsg, m.taskListViewKeys.LeaveRoom):
 			m.roomUI = m.roomUI.Hide()
 			return nil
-		case key.Matches(keyMsg, m.taskListViewKeys.ShowMembers):
-			if m.roomUI.IsInRoom() {
-				// 切换成员列表显示状态
-				m.roomUI, _ = m.roomUI.Update(toggleMembersMsg{})
-			}
-			return nil
 		}
 	}
 

@@ -137,6 +137,8 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		h, v := common.AppStyle.GetFrameSize()
 		m.taskList.SetSize(msg.Width-h, msg.Height-v)
+		// 为房间UI的成员列表设置大小
+		m.roomUI.memberList.SetSize(msg.Width-h, msg.Height-v-6) // 减去状态栏和边框的高度
 		m.settingModel, _ = m.settingModel.Update(msg)
 		return m, nil
 	case tickMsg:
