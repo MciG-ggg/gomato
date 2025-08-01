@@ -104,9 +104,12 @@ func (d DelegateKeyMap) FullHelp() [][]key.Binding {
 // 番茄钟视图的按键映射
 // TimeViewKeyMap 用于番茄钟视图
 type TimeViewKeyMap struct {
-	Back       key.Binding
+	// Back: q/esc 返回任务列表
+	Back key.Binding
+	// StartPause: 空格键开始/暂停计时
 	StartPause key.Binding
-	Reset      key.Binding
+	// Reset: r 重置计时
+	Reset key.Binding
 }
 
 func NewTimeViewKeyMap() *TimeViewKeyMap {

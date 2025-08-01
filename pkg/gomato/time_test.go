@@ -38,7 +38,7 @@ func TestHandleTick_Log(t *testing.T) {
 			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
 		},
 		taskManager: taskMgr,
-		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		taskList:    list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 
 	handleTick(m)
@@ -79,7 +79,7 @@ func TestTimerTickFrequency(t *testing.T) {
 			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
 		},
 		taskManager: taskMgr,
-		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		taskList:    list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 
 	// 模拟2秒的时间，每秒调用一次handleTick
@@ -159,7 +159,7 @@ func TestBubbleTeaTickSimulation(t *testing.T) {
 			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
 		},
 		taskManager: taskMgr,
-		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		taskList:    list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 
 	// 模拟Bubble Tea事件循环：连续处理多个tick消息
@@ -261,7 +261,7 @@ func TestTimerNoDuplicateTicks(t *testing.T) {
 			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
 		},
 		taskManager: taskMgr,
-		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		taskList:    list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 
 	// 模拟Bubble Tea事件循环：快速连续处理tick消息
@@ -319,7 +319,7 @@ func TestHandleTick_WorkToRestSwitch(t *testing.T) {
 			Settings: common.Settings{Pomodoro: 25, ShortBreak: 5, LongBreak: 15, Cycle: 4},
 		},
 		taskManager: taskMgr,
-		list:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		taskList:    list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 	_ = handleTick(m)
 	// 应进入短休息

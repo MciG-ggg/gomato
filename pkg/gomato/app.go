@@ -28,8 +28,8 @@ type App struct {
 	currentView       viewState
 	currentTaskIndex  int
 	taskManager       *task.Manager
-	list              list.Model
-	keys              *keymap.ListKeyMap
+	taskList          list.Model
+	taskListViewKeys  *keymap.ListKeyMap
 	delegateKeys      *keymap.DelegateKeyMap
 	timeViewKeys      *keymap.TimeViewKeyMap
 	timeModel         task.TimeModel
@@ -39,8 +39,7 @@ type App struct {
 
 	// p2p
 	node        *p2p.Node
-	rooManager  *p2p.RoomManager
-	currentRoom *p2p.Room
+	roomManager *p2p.RoomManager
 	roomUI      RoomUIModel
 }
 
@@ -87,9 +86,9 @@ func NewAppWithKeyPath(taskManager *task.Manager, settings common.Settings, keyP
 	return &App{
 		currentView:       taskListView,
 		currentTaskIndex:  0,
-		list:              taskList,
+		taskList:          taskList,
 		taskInput:         NewTaskInputModel(),
-		keys:              listKeys,
+		taskListViewKeys:  listKeys,
 		delegateKeys:      delegateKeys,
 		timeViewKeys:      timeViewKeys,
 		taskManager:       taskManager,
@@ -98,9 +97,9 @@ func NewAppWithKeyPath(taskManager *task.Manager, settings common.Settings, keyP
 		CurrentCycleCount: 0,
 
 		// p2p
-		node:       node,
-		rooManager: node.GetRoomMgr(),
-		roomUI:     roomUI,
+		node:        node,
+		roomManager: node.GetRoomMgr(),
+		roomUI:      roomUI,
 	}
 }
 
@@ -137,7 +136,7 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return handleBack(m)
 	case tea.WindowSizeMsg:
 		h, v := common.AppStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+		m.taskList.SetSize(msg.Width-h, msg.Height-v)
 		m.settingModel, _ = m.settingModel.Update(msg)
 		return m, nil
 	case tickMsg:
@@ -167,7 +166,7 @@ func (m *App) View() string {
 	var mainView string
 	switch m.currentView {
 	case taskListView:
-		mainView = common.AppStyle.Render(m.list.View())
+		mainView = common.AppStyle.Render(m.taskList.View())
 	case timeView:
 		mainView = common.AppStyle.Render(m.timeModel.ViewWithSettings(&m.settingModel.Settings))
 	case taskInputView:
