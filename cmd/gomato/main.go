@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -15,6 +16,12 @@ import (
 )
 
 func main() {
+	// 定义命令行参数
+	var keyPath string
+	flag.StringVar(&keyPath, "key", "", "指定私钥文件路径 (默认: node_priv.key)")
+	flag.StringVar(&keyPath, "k", "", "指定私钥文件路径 (简写)")
+	flag.Parse()
+
 	container := dig.New()
 
 	// 先初始化 logging
@@ -27,7 +34,8 @@ func main() {
 	provides := []interface{}{
 		func() (common.Settings, error) { return common.LoadSettings() },
 		func() (*task.Manager, error) { return task.NewManager() },
-		gomato.NewApp,
+		func() string { return keyPath }, // 提供私钥路径
+		gomato.NewAppWithKeyPath,         // 使用带密钥路径的构造函数
 	}
 	for _, p := range provides {
 		if err := container.Provide(p); err != nil {

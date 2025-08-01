@@ -13,6 +13,9 @@ type ListKeyMap struct {
 	ToggleHelpMenu   key.Binding
 	InsertItem       key.Binding
 	ChooseTask       key.Binding
+	JoinRoom         key.Binding
+	LeaveRoom        key.Binding
+	ShowMembers      key.Binding
 }
 
 func NewListKeyMap() *ListKeyMap {
@@ -45,6 +48,18 @@ func NewListKeyMap() *ListKeyMap {
 			key.WithKeys("H"),
 			key.WithHelp("H", "toggle help"),
 		),
+		JoinRoom: key.NewBinding(
+			key.WithKeys("ctrl+r"),
+			key.WithHelp("ctrl+r", "join room"),
+		),
+		LeaveRoom: key.NewBinding(
+			key.WithKeys("ctrl+l"),
+			key.WithHelp("ctrl+l", "leave room"),
+		),
+		ShowMembers: key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("ctrl+m", "show members"),
+		),
 	}
 }
 
@@ -76,6 +91,21 @@ func (d DelegateKeyMap) ShortHelp() []key.Binding {
 	}
 }
 
+// 房间UI的按键映射
+// RoomKeyMap 用于房间UI的操作
+type RoomKeyMap struct {
+	LeaveRoom key.Binding
+}
+
+func NewRoomKeyMap() *RoomKeyMap {
+	return &RoomKeyMap{
+		LeaveRoom: key.NewBinding(
+			key.WithKeys("q", "esc"),
+			key.WithHelp("q/esc", "leave room"),
+		),
+	}
+}
+
 // FullHelp 实现help.KeyMap接口
 func (d DelegateKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
@@ -89,9 +119,12 @@ func (d DelegateKeyMap) FullHelp() [][]key.Binding {
 // 番茄钟视图的按键映射
 // TimeViewKeyMap 用于番茄钟视图
 type TimeViewKeyMap struct {
-	Back       key.Binding
+	// Back: q/esc 返回任务列表
+	Back key.Binding
+	// StartPause: 空格键开始/暂停计时
 	StartPause key.Binding
-	Reset      key.Binding
+	// Reset: r 重置计时
+	Reset key.Binding
 }
 
 func NewTimeViewKeyMap() *TimeViewKeyMap {

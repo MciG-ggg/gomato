@@ -24,6 +24,9 @@ func tick() tea.Cmd {
 }
 
 func handleTick(m *App) tea.Cmd {
+	if m.currentView != timeView {
+		return nil
+	}
 	if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
 		m.timeModel.TimerRemaining--
 		logging.Log(fmt.Sprintf("[Tick] Timer ticked, remaining: %d", m.timeModel.TimerRemaining))
@@ -44,7 +47,7 @@ func handleTick(m *App) tea.Cmd {
 						m.taskManager.Save()
 					}
 					return tea.Batch(
-						m.list.NewStatusMessage(statusMessageStyle(statusMsg)),
+						m.taskList.NewStatusMessage(statusMessageStyle(statusMsg)),
 						tick(),
 					)
 				} else {
@@ -61,7 +64,7 @@ func handleTick(m *App) tea.Cmd {
 						m.taskManager.Save()
 					}
 					return tea.Batch(
-						m.list.NewStatusMessage(statusMessageStyle(statusMsg)),
+						m.taskList.NewStatusMessage(statusMessageStyle(statusMsg)),
 						tick(),
 					)
 				}
@@ -78,7 +81,7 @@ func handleTick(m *App) tea.Cmd {
 					m.taskManager.Save()
 				}
 				return tea.Batch(
-					m.list.NewStatusMessage(statusMessageStyle("休息结束，开始新一轮工作！")),
+					m.taskList.NewStatusMessage(statusMessageStyle("休息结束，开始新一轮工作！")),
 					tick(),
 				)
 			}
@@ -91,11 +94,17 @@ func handleTick(m *App) tea.Cmd {
 			timeDisplay = common.TimeToAnsiArt(fmt.Sprintf("%02d:%02d", m.timeModel.TimerRemaining/60, m.timeModel.TimerRemaining%60))
 		}
 		statusMsg := fmt.Sprintf("剩余时间: %s", timeDisplay)
-		statusCmd := m.list.NewStatusMessage(statusMessageStyle(statusMsg))
+		statusCmd := m.taskList.NewStatusMessage(statusMessageStyle(statusMsg))
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
 		}
+
+		// 广播状态到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
+		}
+
 		// 只有在计时器仍在运行时才返回tick命令
 		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > 0 {
 			return tea.Batch(statusCmd, tick())
@@ -121,6 +130,10 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		return nil
 	case key.Matches(keyMsg, m.timeViewKeys.StartPause):
 		m.timeModel.TimerIsRunning = !m.timeModel.TimerIsRunning
+		// 广播状态变化到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
+		}
 		if m.timeModel.TimerIsRunning && m.timeModel.TimerRemaining > -2 {
 			return tick()
 		}
@@ -132,6 +145,10 @@ func updateTimeView(m *App, msg tea.Msg) tea.Cmd {
 		if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.taskManager.Tasks) {
 			m.taskManager.Tasks[m.currentTaskIndex].Timer = m.timeModel
 			m.taskManager.Save()
+		}
+		// 广播状态变化到房间
+		if m.roomUI.IsInRoom() {
+			m.roomUI.BroadcastState(m)
 		}
 		return nil
 	}
